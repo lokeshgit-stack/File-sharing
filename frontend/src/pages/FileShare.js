@@ -62,8 +62,8 @@ const FileShare = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://file-sharing-oaqd.onrender.com/api';
-      const { data: result } = await axios.post('${API_BASE_URL}/files', data, {
+      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+      const { data: result } = await axios.post('https://file-sharing-oaqd.onrender.com/api/files', data, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
