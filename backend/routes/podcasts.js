@@ -30,6 +30,114 @@ const downloadFile = (url, dest) => {
 };
 
 // @route   POST /api/podcasts
+// router.post('/', protect, upload.single('file'), async (req, res) => {
+//   try {
+//     if (!req.file) {
+//       logAction('warn', 'No file uploaded', {
+//         action: 'UPLOAD_NO_FILE',
+//         userId: req.user._id
+//       });
+//       return res.status(400).json({ error: 'No file uploaded' });
+//     }
+
+//     const { title, description, duration } = req.body;
+
+//     if (!title) {
+//       return res.status(400).json({ error: 'Title is required' });
+//     }
+
+//     // Determine if file is video
+//     const isVideo = /\.(mp4|mov|avi|mkv|webm)$/i.test(req.file.originalname);
+    
+//     let thumbnailData = {};
+//     let actualDuration = parseInt(duration) || 0;
+
+//     // Generate thumbnail and get duration for videos
+//     if (isVideo) {
+//       try {
+//         // Download video temporarily for processing
+//         const tempPath = path.join('uploads', `temp-${Date.now()}.mp4`);
+//         await downloadFile(req.file.location, tempPath);
+
+//         // Generate thumbnail
+//         thumbnailData = await generateThumbnail(tempPath, req.user._id);
+
+//         // Get actual duration
+//         if (!actualDuration) {
+//           actualDuration = await getVideoDuration(tempPath);
+//         }
+
+//         // Clean up temp file
+//         fs.unlinkSync(tempPath);
+
+//         logger.info('Video processing completed', {
+//           action: 'VIDEO_PROCESS_SUCCESS',
+//           userId: req.user._id,
+//           duration: actualDuration,
+//           hasThumbnail: !!thumbnailData.thumbnailUrl
+//         });
+//       } catch (error) {
+//         logger.error('Video processing failed', {
+//           action: 'VIDEO_PROCESS_FAILED',
+//           error: error.message
+//         });
+//         // Continue without thumbnail if processing fails
+//       }
+//     }
+
+//     // Create podcast entry
+//     const podcast = await Podcast.create({
+//       title,
+//       description: description || '',
+//       s3Key: req.file.key,
+//       s3Url: req.file.location,
+//       thumbnailKey: thumbnailData.thumbnailKey,
+//       thumbnailUrl: thumbnailData.thumbnailUrl,
+//       fileName: req.file.originalname,
+//       fileSize: req.file.size,
+//       duration: actualDuration,
+//       mediaType: isVideo ? 'video' : 'audio',
+//       owner: req.user._id
+//     });
+
+//     const populatedPodcast = await Podcast.findById(podcast._id)
+//       .populate('owner', 'username');
+
+//     logAction('info', 'Media uploaded successfully', {
+//       action: 'MEDIA_UPLOAD_SUCCESS',
+//       userId: req.user._id,
+//       podcastId: podcast._id,
+//       title: podcast.title,
+//       fileSize: req.file.size,
+//       mediaType: isVideo ? 'video' : 'audio',
+//       s3Key: req.file.key
+//     });
+
+//     res.status(201).json({
+//       id: populatedPodcast._id,
+//       title: populatedPodcast.title,
+//       description: populatedPodcast.description,
+//       s3Url: populatedPodcast.s3Url,
+//       thumbnailUrl: populatedPodcast.thumbnailUrl,
+//       fileName: populatedPodcast.fileName,
+//       fileSize: populatedPodcast.fileSize,
+//       duration: populatedPodcast.duration,
+//       mediaType: populatedPodcast.mediaType,
+//       plays: populatedPodcast.plays,
+//       owner: populatedPodcast.owner.username,
+//       userId: populatedPodcast.owner._id,
+//       createdAt: populatedPodcast.createdAt
+//     });
+//   } catch (error) {
+//     logger.error('Error uploading media', { 
+//       error: error.message, 
+//       stack: error.stack,
+//       userId: req.user?._id
+//     });
+//     res.status(500).json({ error: 'Server error' });
+//   }
+// });
+
 router.post('/', protect, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -46,46 +154,36 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Title is required' });
     }
 
-    // Determine if file is video
     const isVideo = /\.(mp4|mov|avi|mkv|webm)$/i.test(req.file.originalname);
-    
     let thumbnailData = {};
     let actualDuration = parseInt(duration) || 0;
 
-    // Generate thumbnail and get duration for videos
-    if (isVideo) {
-      try {
-        // Download video temporarily for processing
+    try {
+      if (isVideo) {
         const tempPath = path.join('uploads', `temp-${Date.now()}.mp4`);
         await downloadFile(req.file.location, tempPath);
 
-        // Generate thumbnail
-        thumbnailData = await generateThumbnail(tempPath, req.user._id);
-
-        // Get actual duration
-        if (!actualDuration) {
-          actualDuration = await getVideoDuration(tempPath);
+        try {
+          thumbnailData = await generateThumbnail(tempPath, req.user._id);
+          if (!actualDuration) {
+            actualDuration = await getVideoDuration(tempPath);
+          }
+        } catch (videoErr) {
+          logger.warn('Video processing failed', {
+            action: 'VIDEO_PROCESS_FAILED',
+            error: videoErr.message,
+          });
+        } finally {
+          if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
         }
-
-        // Clean up temp file
-        fs.unlinkSync(tempPath);
-
-        logger.info('Video processing completed', {
-          action: 'VIDEO_PROCESS_SUCCESS',
-          userId: req.user._id,
-          duration: actualDuration,
-          hasThumbnail: !!thumbnailData.thumbnailUrl
-        });
-      } catch (error) {
-        logger.error('Video processing failed', {
-          action: 'VIDEO_PROCESS_FAILED',
-          error: error.message
-        });
-        // Continue without thumbnail if processing fails
       }
+    } catch (downloadErr) {
+      logger.warn('Video download failed for thumbnail', {
+        action: 'VIDEO_DOWNLOAD_FAILED',
+        error: downloadErr.message,
+      });
     }
 
-    // Create podcast entry
     const podcast = await Podcast.create({
       title,
       description: description || '',
@@ -100,8 +198,7 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       owner: req.user._id
     });
 
-    const populatedPodcast = await Podcast.findById(podcast._id)
-      .populate('owner', 'username');
+    const populatedPodcast = await Podcast.findById(podcast._id).populate('owner', 'username');
 
     logAction('info', 'Media uploaded successfully', {
       action: 'MEDIA_UPLOAD_SUCCESS',
@@ -113,7 +210,9 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       s3Key: req.file.key
     });
 
-    res.status(201).json({
+    // ✅ Always send response
+    return res.status(201).json({
+      message: 'File uploaded successfully',
       id: populatedPodcast._id,
       title: populatedPodcast.title,
       description: populatedPodcast.description,
@@ -129,14 +228,16 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       createdAt: populatedPodcast.createdAt
     });
   } catch (error) {
-    logger.error('Error uploading media', { 
-      error: error.message, 
+    logger.error('Error uploading media', {
+      error: error.message,
       stack: error.stack,
       userId: req.user?._id
     });
-    res.status(500).json({ error: 'Server error' });
+
+    return res.status(500).json({ error: 'Server error during upload' });
   }
 });
+
 
 // @route   GET /api/podcasts (Update response format)
 router.get('/', async (req, res) => {
