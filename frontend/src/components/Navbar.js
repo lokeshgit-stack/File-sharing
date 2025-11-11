@@ -181,21 +181,61 @@ const Navbar = () => {
                 </Link>
               ))}
 
-              {user && userNavItems.map((item) => (
-                <Link key={item.path} to={item.path} onClick={() => setMobileMenuOpen(false)}>
+              {user ? (
+                <>
+                  {userNavItems.map((item) => (
+                    <Link key={item.path} to={item.path} onClick={() => setMobileMenuOpen(false)}>
+                      <motion.div
+                        whileTap={{ scale: 0.95 }}
+                        className={`flex items-center space-x-3 px-4 py-3 rounded-lg ${
+                          isActive(item.path)
+                            ? 'bg-purple-600 text-white'
+                            : 'text-white/80 hover:bg-white/10'
+                        }`}
+                      >
+                        <item.icon className="text-xl" />
+                        <span className="font-medium">{item.label}</span>
+                      </motion.div>
+                    </Link>
+                  ))}
                   <motion.div
-                    whileTap={{ scale: 0.95 }}
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg ${
-                      isActive(item.path)
-                        ? 'bg-purple-600 text-white'
-                        : 'text-white/80 hover:bg-white/10'
-                    }`}
+                    className="flex items-center space-x-2 px-4 py-2 glass-effect rounded-full"
+                    whileHover={{ scale: 1.05 }}
                   >
-                    <item.icon className="text-xl" />
-                    <span className="font-medium">{item.label}</span>
+                    <FiUser className="text-purple-400" />
+                    <span className="text-white font-medium">{user.username}</span>
                   </motion.div>
-                </Link>
-              ))}
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                    className="flex items-center space-x-2 bg-gradient-to-r from-red-500 to-pink-600 px-4 py-2 rounded-full text-white font-bold shadow-lg hover:shadow-xl transition-all"
+                  >
+                    <FiLogOut />
+                    <span>Logout</span>
+                  </motion.button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                    <motion.div
+                      whileTap={{ scale: 0.95 }}
+                      className="flex items-center space-x-3 px-4 py-3 rounded-lg text-white/80 hover:bg-white/10"
+                    >
+                      <FiUser className="text-xl" />
+                      <span className="font-medium">Login</span>
+                    </motion.div>
+                  </Link>
+                  <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
+                    <motion.div
+                      whileTap={{ scale: 0.95 }}
+                      className="flex items-center space-x-3 px-4 py-3 rounded-lg text-white/80 hover:bg-white/10"
+                    >
+                      <FiUser className="text-xl" />
+                      <span className="font-medium">Sign Up</span>
+                    </motion.div>
+                  </Link>
+                </>
+              )}
             </div>
           </motion.div>
         )}
