@@ -242,14 +242,15 @@ const PodcastCard = ({ podcast, onDelete, showActions = false }) => {
                 </>
               )}
             </motion.button>
-            <motion.button
+            {/* <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => navigate(`/podcast/${podcast.id}`)}
               className="glass-effect p-3 rounded-full hover:bg-white/20"
             >
               <FiEye className="text-xl text-white" />
-            </motion.button>
+            </motion.button> */}
+
             {showActions && onDelete && (
               <motion.button
                 whileHover={{ scale: 1.1 }}
