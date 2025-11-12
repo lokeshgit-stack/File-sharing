@@ -56,7 +56,8 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
     if (isVideo) {
       try {
         // Download video temporarily for processing
-        const tempPath = path.join('uploads', `temp-${Date.now()}.mp4`);
+        // const tempPath = path.join('uploads', `temp-${Date.now()}.mp4`);
+        const tempPath = path.join('/tmp', `temp-${Date.now()}.mp4`);
         await downloadFile(req.file.location, tempPath);
 
         // Generate thumbnail
