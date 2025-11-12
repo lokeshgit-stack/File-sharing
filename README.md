@@ -42,8 +42,10 @@ A full-stack MERN application for sharing podcasts and files with secure authent
 ## 📋 Prerequisites
 
 - Node.js (v16 or higher)
-- MongoDB (local or Atlas)
+- MongoDB Atlas account
 - AWS S3 bucket and credentials
+- Vercel account (for frontend deployment)
+- Render account (for backend deployment)
 - npm or yarn package manager
 
 ## 🔧 Installation
@@ -175,6 +177,50 @@ sharepod-mern-app/
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+## 🚀 Deployment
+
+### Backend Deployment (Railway)
+
+1. Create a new project on Railway
+2. Connect your GitHub repository
+3. Set environment variables in Railway dashboard:
+   - `NODE_ENV=production`
+   - `MONGODB_URI=your_mongodb_atlas_connection_string`
+   - `JWT_SECRET=your_jwt_secret_here`
+   - `AWS_ACCESS_KEY_ID=your_aws_access_key`
+   - `AWS_SECRET_ACCESS_KEY=your_aws_secret_key`
+   - `AWS_REGION=your_aws_region`
+   - `S3_BUCKET_NAME=your_s3_bucket_name`
+   - `FRONTEND_URL=https://your-vercel-frontend-url.vercel.app`
+4. Deploy the backend
+
+### Frontend Deployment (Vercel)
+
+1. Create a new project on Vercel
+2. Connect your GitHub repository (select only the frontend folder)
+3. Set environment variables in Vercel dashboard:
+   - `REACT_APP_API_URL=https://your-railway-backend-url.railway.app/api`
+4. Deploy the frontend
+
+### Environment Variables
+
+#### Backend (.env.production)
+```
+NODE_ENV=production
+MONGODB_URI=your_mongodb_atlas_connection_string
+JWT_SECRET=your_jwt_secret_here
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_REGION=your_aws_region
+S3_BUCKET_NAME=your_s3_bucket_name
+FRONTEND_URL=https://your-vercel-frontend-url.vercel.app
+```
+
+#### Frontend (Vercel Environment Variables)
+```
+REACT_APP_API_URL=https://your-railway-backend-url.railway.app/api
+```
 
 ## 📄 License
 

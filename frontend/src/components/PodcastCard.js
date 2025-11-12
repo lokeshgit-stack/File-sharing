@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlay, FiPause, FiTrash2, FiEye, FiHeart, FiVideo, FiMusic } from 'react-icons/fi';
-// import { BsWaveform } from 'react-icons/bs';
 import { BsSoundwave } from 'react-icons/bs';
 import { podcastAPI } from '../services/api';
 import { useNavigate } from 'react-router-dom';
@@ -20,20 +19,28 @@ const PodcastCard = ({ podcast, onDelete, showActions = false }) => {
   const isVideo = podcast.mediaType === 'video';
 
   useEffect(() => {
-    if (!isVideo) {
+    if (!isVideo && audioRef.current) {
       const audio = audioRef.current;
-      if (!audio) return;
 
       const updateProgress = () => {
-        const progress = (audio.currentTime / audio.duration) * 100;
-        setProgress(progress);
-        setCurrentTime(audio.currentTime);
+        if (audio.duration > 0) {
+          setProgress((audio.currentTime / audio.duration) * 100);
+          setCurrentTime(audio.currentTime);
+        }
       };
 
       audio.addEventListener('timeupdate', updateProgress);
-      return () => audio.removeEventListener('timeupdate', updateProgress);
+      audio.addEventListener('ended', () => setIsPlaying(false));
+      return () => {
+        audio.removeEventListener('timeupdate', updateProgress);
+        audio.removeEventListener('ended', () => setIsPlaying(false));
+      };
     }
-  }, [isVideo]);
+    // Reset playback when the podcast changes
+    setIsPlaying(false);
+    setProgress(0);
+    setCurrentTime(0);
+  }, [isVideo, podcast.id]);
 
   const handlePlay = async () => {
     if (isVideo) {
@@ -41,13 +48,17 @@ const PodcastCard = ({ podcast, onDelete, showActions = false }) => {
       await podcastAPI.play(podcast.id);
     } else {
       const audio = audioRef.current;
-      
+      if (!audio) return;
       if (isPlaying) {
         audio.pause();
       } else {
-        audio.play();
-        await podcastAPI.play(podcast.id);
-        toast.success('Playing podcast!', { icon: '🎵' });
+        try {
+          await audio.play();
+          await podcastAPI.play(podcast.id);
+          toast.success('Playing podcast!', { icon: '🎵' });
+        } catch (err) {
+          toast.error('Failed to play audio.');
+        }
       }
       setIsPlaying(!isPlaying);
     }
@@ -58,6 +69,7 @@ const PodcastCard = ({ podcast, onDelete, showActions = false }) => {
   };
 
   const formatDuration = (seconds) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -91,21 +103,22 @@ const PodcastCard = ({ podcast, onDelete, showActions = false }) => {
         whileHover={{ y: -8, boxShadow: '0 20px 40px rgba(168, 85, 247, 0.3)' }}
         className="glass-effect rounded-2xl overflow-hidden group cursor-pointer relative"
       >
-        {/* Thumbnail/Video Preview */}
+        {/* Thumbnail / Video Preview */}
         {isVideo ? (
           <div className="relative aspect-video bg-gradient-to-br from-purple-900 to-blue-900">
             {podcast.thumbnailUrl ? (
-              <img 
-                src={podcast.thumbnailUrl} 
+              <img
+                src={podcast.thumbnailUrl}
                 alt={podcast.title}
                 className="w-full h-full object-cover"
+                onError={e => { e.target.style.display = 'none'; }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <FiVideo className="text-white/50 text-6xl" />
               </div>
             )}
-            
+
             {/* Play Overlay */}
             <motion.div
               whileHover={{ scale: 1.1 }}
@@ -132,8 +145,6 @@ const PodcastCard = ({ podcast, onDelete, showActions = false }) => {
             >
               <FiMusic className="text-white/30 text-6xl" />
             </motion.div>
-            
-            {/* Audio Badge */}
             <div className="absolute top-3 left-3 bg-pink-600 px-3 py-1 rounded-full flex items-center space-x-2">
               <FiMusic className="text-white" />
               <span className="text-white text-xs font-bold">AUDIO</span>
@@ -142,7 +153,7 @@ const PodcastCard = ({ podcast, onDelete, showActions = false }) => {
         )}
 
         <div className="p-6">
-          {/* Header */}
+          {/* Title / Description */}
           <div className="flex items-start justify-between mb-4">
             <motion.div className="flex-1" whileHover={{ scale: 1.02 }}>
               <h3 className="text-2xl font-bold text-white mb-2 line-clamp-2">
@@ -152,14 +163,13 @@ const PodcastCard = ({ podcast, onDelete, showActions = false }) => {
                 {podcast.description}
               </p>
             </motion.div>
-
             <motion.button
               whileHover={{ scale: 1.2, rotate: 360 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleLike}
               className="ml-4"
             >
-              <FiHeart 
+              <FiHeart
                 className={`text-2xl ${isLiked ? 'fill-red-500 text-red-500' : 'text-white/60'}`}
               />
             </motion.button>
@@ -168,15 +178,14 @@ const PodcastCard = ({ podcast, onDelete, showActions = false }) => {
           {/* Info Bar */}
           <div className="flex items-center justify-between mb-4 text-sm">
             <div className="flex items-center space-x-4">
-              <motion.div 
+              <motion.div
                 className="flex items-center space-x-2 glass-effect px-3 py-1 rounded-full"
                 whileHover={{ scale: 1.05 }}
               >
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                 <span className="text-white/80">by {podcast.owner}</span>
               </motion.div>
-              
-              <motion.div 
+              <motion.div
                 className="flex items-center space-x-2 text-purple-300"
                 whileHover={{ scale: 1.1 }}
               >
@@ -184,22 +193,20 @@ const PodcastCard = ({ podcast, onDelete, showActions = false }) => {
                 <span>{podcast.plays} plays</span>
               </motion.div>
             </div>
-
             {podcast.fileSize && (
               <span className="text-white/60 text-xs">{formatFileSize(podcast.fileSize)}</span>
             )}
           </div>
 
-          {/* Audio Element (for audio only) */}
+          {/* Audio Element (only for audio) */}
           {!isVideo && (
             <>
-              <audio 
-                ref={audioRef} 
-                src={podcast.s3Url} 
-                onEnded={() => setIsPlaying(false)} 
+              <audio
+                ref={audioRef}
+                src={podcast.s3Url}
+                onEnded={() => setIsPlaying(false)}
+                onError={() => toast.error('Audio failed to load!')}
               />
-
-              {/* Progress Bar */}
               <div className="mb-4">
                 <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
                   <motion.div
@@ -235,7 +242,6 @@ const PodcastCard = ({ podcast, onDelete, showActions = false }) => {
                 </>
               )}
             </motion.button>
-
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
@@ -244,7 +250,6 @@ const PodcastCard = ({ podcast, onDelete, showActions = false }) => {
             >
               <FiEye className="text-xl text-white" />
             </motion.button>
-
             {showActions && onDelete && (
               <motion.button
                 whileHover={{ scale: 1.1 }}
@@ -260,40 +265,47 @@ const PodcastCard = ({ podcast, onDelete, showActions = false }) => {
       </motion.div>
 
       {/* Full-Screen Video Player Modal */}
-      {showVideoPlayer && isVideo && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4"
-          onClick={() => setShowVideoPlayer(false)}
-        >
-          <motion.div
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            exit={{ scale: 0.8 }}
-            className="w-full max-w-6xl"
-            onClick={(e) => e.stopPropagation()}
+<AnimatePresence>
+  {showVideoPlayer && isVideo && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4"
+      onClick={() => setShowVideoPlayer(false)}
+    >
+      <motion.div
+        initial={{ scale: 0.8 }}
+        animate={{ scale: 1 }}
+        exit={{ scale: 0.8 }}
+        className="w-full max-w-6xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-white">{podcast.title}</h2>
+          <motion.button
+            whileHover={{ scale: 1.1, rotate: 90 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setShowVideoPlayer(false)}
+            className="text-white text-3xl hover:text-red-400"
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-white">{podcast.title}</h2>
-              <motion.button
-                whileHover={{ scale: 1.1, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setShowVideoPlayer(false)}
-                className="text-white text-3xl hover:text-red-400"
-              >
-                ×
-              </motion.button>
-            </div>
-            <VideoPlayer 
-              url={podcast.s3Url} 
-              thumbnail={podcast.thumbnailUrl}
-              onPlay={handleVideoPlay}
-            />
-          </motion.div>
-        </motion.div>
-      )}
+            ×
+          </motion.button>
+        </div>
+        <video
+        src={podcast.url || podcast.s3Url}
+        controls
+        autoPlay
+        style={{ width: '100%', maxHeight: '600px', borderRadius: '1rem' }}
+      />
+        <div className="mt-4 text-white/70 text-sm">
+          <p>{podcast.description}</p>
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
+
     </>
   );
 };

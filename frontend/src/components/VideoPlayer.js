@@ -1,138 +1,234 @@
 import React, { useState, useRef } from 'react';
 import ReactPlayer from 'react-player';
 import { motion } from 'framer-motion';
-import { FiMaximize, FiMinimize, FiVolume2, FiVolumeX, FiPictureInPicture } from 'react-icons/fi';
+import { FiPlay, FiPause, FiVolume2, FiVolumeX, FiMaximize, FiMinimize } from 'react-icons/fi';
 
-const VideoPlayer = ({ url, title }) => {
+const VideoPlayer = ({ url, thumbnail, onPlay }) => {
   const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
+  const [played, setPlayed] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [seeking, setSeeking] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [ready, setReady] = useState(false);
   const playerRef = useRef(null);
+  const containerRef = useRef(null);
+
+  console.log('🎬 VideoPlayer props:', { url, thumbnail });
 
   const handlePlayPause = () => {
+    console.log('Play/Pause clicked, current state:', playing);
     setPlaying(!playing);
+    if (!playing && onPlay) {
+      onPlay();
+    }
+  };
+
+  const handleProgress = (state) => {
+    if (!seeking) {
+      setPlayed(state.played);
+    }
+  };
+
+  const handleSeekMouseDown = () => {
+    setSeeking(true);
+  };
+
+  const handleSeekChange = (e) => {
+    setPlayed(parseFloat(e.target.value));
+  };
+
+  const handleSeekMouseUp = (e) => {
+    setSeeking(false);
+    playerRef.current.seekTo(parseFloat(e.target.value));
+  };
+
+  const toggleMute = () => {
+    setMuted(!muted);
   };
 
   const handleVolumeChange = (e) => {
     setVolume(parseFloat(e.target.value));
   };
 
-  const handleToggleMute = () => {
-    setMuted(!muted);
-  };
-
-  const handleToggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
+  const toggleFullscreen = () => {
+    if (!fullscreen) {
+      if (containerRef.current.requestFullscreen) {
+        containerRef.current.requestFullscreen();
+      } else if (containerRef.current.webkitRequestFullscreen) {
+        containerRef.current.webkitRequestFullscreen();
+      } else if (containerRef.current.msRequestFullscreen) {
+        containerRef.current.msRequestFullscreen();
+      }
       setFullscreen(true);
     } else {
-      document.exitFullscreen();
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
       setFullscreen(false);
     }
   };
 
-  const handlePictureInPicture = async () => {
-    try {
-      const videoElement = playerRef.current.getInternalPlayer();
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-      } else if (videoElement.readyState >= 2) { // Check if metadata is loaded
-        await videoElement.requestPictureInPicture();
-      }
-    } catch (error) {
-      console.error('PiP error:', error);
-    }
+  const formatTime = (seconds) => {
+    if (isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleReady = () => {
-    setReady(true);
+    console.log('✅ Video player ready');
   };
 
-   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="relative rounded-xl overflow-hidden shadow-2xl bg-gray-900"
-    >
-      <div className={`relative ${fullscreen ? 'h-screen' : 'aspect-video'}`}>
+  const handleError = (error) => {
+    console.error('❌ Video player error:', error);
+  };
+
+  const handleDuration = (duration) => {
+    console.log('⏱️ Video duration:', duration);
+    setDuration(duration);
+  };
+
+  return (
+    <div ref={containerRef} className="relative w-full rounded-2xl overflow-hidden bg-black">
+      {/* Video Player */}
+      <div className="relative" style={{ paddingTop: '56.25%' }}> {/* 16:9 Aspect Ratio */}
         <ReactPlayer
           ref={playerRef}
           url={url}
-          width="100%"
-          height="100%"
           playing={playing}
           volume={volume}
           muted={muted}
-          controls={true}
-          pip={false}
-          stopOnUnmount={true}
+          width="100%"
+          height="100%"
+          style={{ position: 'absolute', top: 0, left: 0 }}
+          onProgress={handleProgress}
+          onDuration={handleDuration}
           onReady={handleReady}
-          className="react-player"
+          onError={handleError}
           config={{
             file: {
               attributes: {
                 controlsList: 'nodownload',
-                onContextMenu: e => e.preventDefault()
+                crossOrigin: 'anonymous'
               }
             }
           }}
+          light={thumbnail || false}
+          playIcon={
+            <motion.div
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="w-20 h-20 bg-purple-600 rounded-full flex items-center justify-center cursor-pointer shadow-2xl"
+            >
+              <FiPlay className="text-white text-4xl ml-1" />
+            </motion.div>
+          }
         />
-        
-        {/* Custom Controls Overlay */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 hover:opacity-100 transition-opacity">
-          <div className="flex items-center justify-between text-white">
+      </div>
+
+      {/* Custom Controls */}
+      {playing && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4"
+        >
+          {/* Progress Bar */}
+          <div className="mb-3">
+            <input
+              type="range"
+              min={0}
+              max={0.999999}
+              step="any"
+              value={played}
+              onMouseDown={handleSeekMouseDown}
+              onChange={handleSeekChange}
+              onMouseUp={handleSeekMouseUp}
+              className="w-full h-2 bg-white/30 rounded-full appearance-none cursor-pointer slider"
+              style={{
+                background: `linear-gradient(to right, #a855f7 0%, #a855f7 ${played * 100}%, rgba(255,255,255,0.3) ${played * 100}%, rgba(255,255,255,0.3) 100%)`
+              }}
+            />
+            <div className="flex justify-between text-xs text-white/80 mt-1">
+              <span>{formatTime(played * duration)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              {/* Volume Control */}
+              {/* Play/Pause */}
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handlePlayPause}
+                className="text-white text-2xl hover:text-purple-400 transition"
+              >
+                {playing ? <FiPause /> : <FiPlay />}
+              </motion.button>
+
+              {/* Time Display */}
+              <span className="text-white text-sm font-mono">
+                {formatTime(played * duration)} / {formatTime(duration)}
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              {/* Volume */}
               <div className="flex items-center space-x-2">
-                <button 
-                  onClick={handleToggleMute}
-                  className="p-2 hover:bg-white/10 rounded-lg transition"
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={toggleMute}
+                  className="text-white text-xl hover:text-purple-400 transition"
                 >
-                  {muted || volume === 0 ? <FiVolumeX size={20} /> : <FiVolume2 size={20} />}
-                </button>
+                  {muted ? <FiVolumeX /> : <FiVolume2 />}
+                </motion.button>
                 <input
                   type="range"
                   min={0}
                   max={1}
                   step={0.1}
-                  value={volume}
+                  value={muted ? 0 : volume}
                   onChange={handleVolumeChange}
-                  className="w-24 accent-purple-500"
+                  className="w-20 h-1 bg-white/30 rounded-full appearance-none cursor-pointer"
                 />
               </div>
 
-              {/* PiP Button */}
-              {ready && document.pictureInPictureEnabled && (
-                <button
-                  onClick={handlePictureInPicture}
-                  className="p-2 hover:bg-white/10 rounded-lg transition"
-                  title="Picture in Picture"
-                >
-                  <FiMaximize2 size={20} />
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center space-x-4">
-              {/* Title */}
-              <span className="text-sm font-medium truncate max-w-md">
-                {title}
-              </span>
-
-              {/* Fullscreen Toggle */}
-              <button 
-                onClick={handleToggleFullscreen}
-                className="p-2 hover:bg-white/10 rounded-lg transition"
+              {/* Fullscreen */}
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={toggleFullscreen}
+                className="text-white text-xl hover:text-purple-400 transition"
               >
-                {fullscreen ? <FiMinimize size={20} /> : <FiMaximize size={20} />}
-              </button>
+                {fullscreen ? <FiMinimize /> : <FiMaximize />}
+              </motion.button>
             </div>
           </div>
+        </motion.div>
+      )}
+
+      {/* Loading Overlay */}
+      {!playing && !thumbnail && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+          <motion.div
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={handlePlayPause}
+            className="w-20 h-20 bg-purple-600 rounded-full flex items-center justify-center cursor-pointer shadow-2xl"
+          >
+            <FiPlay className="text-white text-4xl ml-1" />
+          </motion.div>
         </div>
-      </div>
-    </motion.div>
+      )}
+    </div>
   );
 };
 
