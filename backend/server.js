@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import connectDB from './config/db.js';
 import logger from './config/logger.js';
 import { requestLogger } from './middleware/requestLogger.js';
-import fileRoutes from './routes/files.js';
+// import fileRoutes from './routes/files.js';
 
 // Load environment variables FIRST
 dotenv.config();
@@ -49,7 +49,8 @@ import authRoutes from './routes/auth.js';
 import podcastRoutes from './routes/podcasts.js';
 import playlistRoutes from './routes/playlists.js';
 import logRoutes from './routes/logs.js';
-// import fileRoutes from './routes/files.js';
+import postRoutes from './routes/posts.js';
+import fileRoutes from './routes/files.js';
 
 // Health check - Test this first!
 app.get('/api/health', (req, res) => {
@@ -65,6 +66,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/podcasts', podcastRoutes);
 app.use('/api/playlists', playlistRoutes);
+app.use('/api/posts', postRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/files', fileRoutes);
 
@@ -105,23 +107,31 @@ app.use((req, res, next) => {
     method: req.method,
     requestedUrl: req.originalUrl,
     availableRoutes: [
-      'GET /api/health',
-      'POST /api/auth/register',
-      'POST /api/auth/login',
-      'GET /api/auth/me',
-      'GET /api/podcasts',
-      'POST /api/podcasts',
-      'GET /api/podcasts/:id',
-      'DELETE /api/podcasts/:id',
-      'POST /api/podcasts/:id/play',
-      'GET /api/podcasts/user/:userId',
-      'GET /api/playlists',
-      'POST /api/playlists',
-      'GET /api/playlists/:id',
-      'GET /api/logs',
-      'POST /api/files/upload',
-      'GET /api/files/:fileId',
-      'GET /api/files'
+    'GET /api/health',
+    'POST /api/auth/register',
+    'POST /api/auth/login',
+    'GET /api/auth/me',
+    'GET /api/podcasts',
+    'POST /api/podcasts',
+    'GET /api/podcasts/:id',
+    'DELETE /api/podcasts/:id',
+    'POST /api/podcasts/:id/play',
+    'GET /api/podcasts/user/:userId',
+    'GET /api/posts',
+    'POST /api/posts',
+    'GET /api/posts/:id',
+    'DELETE /api/posts/:id',
+    'POST /api/posts/:id/view',
+    'POST /api/posts/:id/like',
+    'GET /api/posts/user/:userId',
+    'GET /api/playlists',
+    'POST /api/playlists',
+    'GET /api/playlists/:id',
+    'GET /api/logs',
+    'POST /api/files/upload',
+    'GET /api/files/:id',
+    'GET /api/files'
+
 
     ]
   });
@@ -166,7 +176,7 @@ app.listen(PORT, () => {
   });
 });
 
-app.use('/api/files', fileRoutes);
+// app.use('/api/files', fileRoutes);
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {

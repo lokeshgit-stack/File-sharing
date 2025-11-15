@@ -17,13 +17,15 @@ import FileShare from './pages/FileShare';
 import FileShareResult from './pages/FileShareResult';
 import Layout from './components/Layout';
 import { ThemeProvider } from './context/ThemeContext';
-// import MyFiles from './pages/MyFiles';
+import NewPost from './pages/NewPost'; // New post creation page
+import MyPosts from './pages/MyPosts'; // User's posts page
+import PostDetail from './pages/PostDetail'; // Individual post detail page
+import PublicFileShare from './pages/PublicFileShare';
+
 
 function App() {
   return (
-      // <ThemeProvider>
     <Router>
-       {/* <Layout> */}
       <AuthProvider>
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
           <Navbar />
@@ -40,54 +42,30 @@ function App() {
             }}
           />
           <Routes>
+            {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/playlists" element={<Playlists />} />
+            
+            {/* Podcast Routes (existing) */}
             <Route path="/podcast/:id" element={<PodcastDetail />} />
             <Route path="/my-podcasts" element={<PrivateRoute><MyPodcasts /></PrivateRoute>} />
-            <Route path="/file-share" element={
-              <PrivateRoute>
-                <FileShare />
-              </PrivateRoute>
-            } />
-            <Route path="/my-files" element={
-              <PrivateRoute>
-                <FileShareResult />
-              </PrivateRoute>
-            } />
-            <Route 
-              path="/upload" 
-              element={
-                <PrivateRoute>
-                  <Upload />
-                </PrivateRoute>
-              } 
-            />
-            <Route 
-              path="/my-podcasts" 
-              element={
-                <PrivateRoute>
-                  <MyPodcasts />
-                </PrivateRoute>
-              } 
-            />
-<Route path="/share/:shareId" element={<FileShareResult />} />
+            <Route path="/upload" element={<PrivateRoute><Upload /></PrivateRoute>} />
+            
+            {/* New Post Routes */}
+            <Route path="/new-post" element={<PrivateRoute><NewPost /></PrivateRoute>} />
+            <Route path="/my-posts" element={<PrivateRoute><MyPosts /></PrivateRoute>} />
+            <Route path="/post/:id" element={<PostDetail />} />
+            
+            {/* File Share Routes */}
+            <Route path="/file-share" element={<PrivateRoute><FileShare /></PrivateRoute>} />
+            <Route path="/my-files" element={<PrivateRoute><FileShareResult /></PrivateRoute>} />
+            {/* <Route path="/share/:shareId" element={<FileShareResult />} /> */}
+             <Route path="/share/:shareId" element={<PublicFileShare />} />
           </Routes>
         </div>
       </AuthProvider>
-    {/* </Layout>
-     <Toaster 
-          position="top-right"
-          toastOptions={{
-            className: 'dark:bg-gray-800 dark:text-white',
-            style: {
-              background: 'var(--toaster-bg)',
-              color: 'var(--toaster-color)',
-            },
-          }}
-        /> */}
-    {/* </ThemeProvider> */}
     </Router>
   );
 }

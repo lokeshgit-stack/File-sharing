@@ -47,7 +47,11 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
     }
 
     // Determine if file is video
-    const isVideo = /\.(mp4|mov|avi|mkv|webm)$/i.test(req.file.originalname);
+    // const isVideo = /\.(mp4|mov|avi|mkv|webm)$/i.test(req.file.originalname);
+    const mime = req.file.mimetype;
+    const isVideo = mime.startsWith("video/");
+    const isImage = mime.startsWith("image/");
+    const isAudio = mime.startsWith("audio/");
     
     let thumbnailData = {};
     let actualDuration = parseInt(duration) || 0;
@@ -96,8 +100,9 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       thumbnailUrl: thumbnailData.thumbnailUrl,
       fileName: req.file.originalname,
       fileSize: req.file.size,
-      duration: actualDuration,
-      mediaType: isVideo ? 'video' : 'audio',
+      duration: isAudio || isImage ? 0 : actualDuration,    // images/audio have no duration
+      mediaType: isImage ? "image" : isVideo ? "video" : "audio",
+      mimeType: req.file.mimetype,
       owner: req.user._id
     });
 
@@ -110,7 +115,8 @@ router.post('/', protect, upload.single('file'), async (req, res) => {
       podcastId: podcast._id,
       title: podcast.title,
       fileSize: req.file.size,
-      mediaType: isVideo ? 'video' : 'audio',
+      mediaType: isImage ? "image" : isVideo ? "video" : "audio",
+      mimeType: req.file.mimetype,
       s3Key: req.file.key
     });
 
@@ -257,7 +263,7 @@ router.get('/', async (req, res) => {
       fileName: podcast.fileName,
       fileSize: podcast.fileSize,
       duration: podcast.duration,
-      mediaType: podcast.mediaType || 'audio',
+      mediaType: podcast.mediaType,
       plays: podcast.plays,
       owner: podcast.owner.username,
       userId: podcast.owner._id,
@@ -286,7 +292,7 @@ router.get('/user/:userId', async (req, res) => {
       fileName: podcast.fileName,
       fileSize: podcast.fileSize,
       duration: podcast.duration,
-      mediaType: podcast.mediaType || 'audio',
+      mediaType: podcast.mediaType,
       plays: podcast.plays,
       owner: podcast.owner.username,
       userId: podcast.owner._id,

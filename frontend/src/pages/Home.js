@@ -1,24 +1,57 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiFilter, FiTrendingUp, FiRefreshCw } from 'react-icons/fi';
-import { podcastAPI } from '../services/api';
+import { podcastAPI, postAPI } from '../services/api';
 import PodcastCard from '../components/PodcastCard';
+import PostCard from '../components/PostCard';
 import toast from 'react-hot-toast';
 
 const Home = () => {
   const [podcasts, setPodcasts] = useState([]);
+  const [posts, setPosts] = useState([]);
   const [filteredPodcasts, setFilteredPodcasts] = useState([]);
+  const [filteredPosts, setFilteredPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('recent');
+  const [activeTab, setActiveTab] = useState('all'); // 'all', 'podcasts', 'posts'
 
   useEffect(() => {
-    loadPodcasts();
-  }, []); // ← Load on mount
+    loadContent();
+  }, []);
 
   useEffect(() => {
-    filterAndSortPodcasts();
-  }, [searchTerm, sortBy, podcasts]); // ← Update when filters change
+    filterAndSortContent();
+  }, [searchTerm, sortBy, podcasts, posts]);
+
+  const loadContent = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching all content...');
+      
+      const [podcastsData, postsData] = await Promise.all([
+        podcastAPI.getAll(),
+        postAPI.getAll()
+      ]);
+      
+      console.log('Fetched podcasts:', podcastsData.data);
+      console.log('Fetched posts:', postsData.data);
+      
+      setPodcasts(podcastsData.data || []);
+      setPosts(postsData.data || []);
+      setFilteredPodcasts(podcastsData.data || []);
+      setFilteredPosts(postsData.data || []);
+    } catch (error) {
+      console.error('Error loading content:', error);
+      toast.error('Failed to load content');
+      setPodcasts([]);
+      setPosts([]);
+      setFilteredPodcasts([]);
+      setFilteredPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadPodcasts = async () => {
     try {
@@ -42,6 +75,50 @@ const Home = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const filterAndSortContent = () => {
+    // Filter and sort podcasts
+    let filteredP = [...podcasts];
+    
+    if (searchTerm) {
+      filteredP = filteredP.filter(podcast =>
+        podcast.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        podcast.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        podcast.owner?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filter and sort posts
+    let filteredPo = [...posts];
+    
+    if (searchTerm) {
+      filteredPo = filteredPo.filter(post =>
+        post.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        post.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        post.owner?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply sorting
+    const sortFunction = (a, b) => {
+      switch (sortBy) {
+        case 'popular':
+          return (b.plays || 0) - (a.plays || 0);
+        case 'recent':
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        case 'title':
+          return (a.title || '').localeCompare(b.title || '');
+        default:
+          return 0;
+      }
+    };
+
+    filteredP.sort(sortFunction);
+    filteredPo.sort(sortFunction);
+
+    setFilteredPodcasts(filteredP);
+    setFilteredPosts(filteredPo);
   };
 
   const filterAndSortPodcasts = () => {
@@ -76,8 +153,26 @@ const Home = () => {
 
   const handleRefresh = () => {
     toast.loading('Refreshing...');
-    loadPodcasts();
+    loadContent();
   };
+
+  // Get content based on active tab
+  const getCurrentContent = () => {
+    switch (activeTab) {
+      case 'podcasts':
+        return filteredPodcasts;
+      case 'posts':
+        return filteredPosts;
+      case 'all':
+      default:
+        return [...filteredPosts, ...filteredPodcasts].sort((a, b) => 
+          new Date(b.createdAt) - new Date(a.createdAt)
+        );
+    }
+  };
+
+  const currentContent = getCurrentContent();
+  const totalCount = filteredPodcasts.length + filteredPosts.length;
 
   if (loading) {
     return (
@@ -109,7 +204,7 @@ const Home = () => {
           >
             <span className="gradient-text">Discover Amazing</span>
             <br />
-            <span className="text-white">Podcasts</span>
+            <span className="text-white">Content</span>
           </motion.h1>
           
           <motion.p 
@@ -132,7 +227,7 @@ const Home = () => {
               <FiSearch className="text-white text-2xl ml-4" />
               <input
                 type="text"
-                placeholder="Search podcasts..."
+                placeholder="Search podcasts and posts..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="flex-1 bg-transparent text-white px-4 py-3 outline-none placeholder-white/50"
@@ -167,7 +262,7 @@ const Home = () => {
 
       {/* Content Section */}
       <div className="container mx-auto px-4 py-8">
-        {/* Filter Bar */}
+        {/* Filter Bar with Tabs */}
         <motion.div 
           className="flex flex-wrap items-center justify-between mb-8 gap-4"
           initial={{ opacity: 0 }}
@@ -175,15 +270,40 @@ const Home = () => {
         >
           <div className="flex items-center space-x-4">
             <FiTrendingUp className="text-purple-400 text-2xl" />
-            <h2 className="text-2xl font-bold text-white">
-              {searchTerm ? 'Search Results' : 'Featured Podcasts'}
-            </h2>
-            <motion.span 
-              className="glass-effect px-4 py-1 rounded-full text-white/80"
-              whileHover={{ scale: 1.05 }}
-            >
-              {filteredPodcasts.length} episodes
-            </motion.span>
+            
+            {/* Tab Switcher */}
+            <div className="glass-effect rounded-full p-1 flex">
+              {/* <button
+                onClick={() => setActiveTab('all')}
+                className={`px-4 py-2 rounded-full transition text-sm ${
+                  activeTab === 'all'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                    : 'text-white/60 hover:text-white'
+                }`}
+              >
+                All ({totalCount})
+              </button> */}
+              <button
+                onClick={() => setActiveTab('posts')}
+                className={`px-4 py-2 rounded-full transition text-sm ${
+                  activeTab === 'posts'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                    : 'text-white/60 hover:text-white'
+                }`}
+              >
+                Posts ({filteredPosts.length})
+              </button>
+              {/* <button
+                onClick={() => setActiveTab('podcasts')}
+                className={`px-4 py-2 rounded-full transition text-sm ${
+                  activeTab === 'podcasts'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                    : 'text-white/60 hover:text-white'
+                }`}
+              >
+                Podcasts ({filteredPodcasts.length})
+              </button> */}
+            </div>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -209,22 +329,28 @@ const Home = () => {
           </div>
         </motion.div>
 
-        {/* Podcasts Grid */}
-        <AnimatePresence>
-          {filteredPodcasts.length > 0 ? (
+        {/* Content Grid */}
+        <AnimatePresence mode="wait">
+          {currentContent.length > 0 ? (
             <motion.div
+              key={activeTab}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
             >
-              {filteredPodcasts.map((podcast, index) => (
+              {currentContent.map((item, index) => (
                 <motion.div
-                  key={podcast.id}
+                  key={item.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <PodcastCard podcast={podcast} />
+                  {item.media ? (
+                    <PostCard post={item} showActions={false} />
+                  ) : (
+                    <PodcastCard podcast={item} showActions={false} />
+                  )}
                 </motion.div>
               ))}
             </motion.div>
@@ -239,13 +365,13 @@ const Home = () => {
                 transition={{ duration: 2, repeat: Infinity }}
                 className="text-8xl mb-6"
               >
-                🎙️
+                {activeTab === 'posts' ? '📝' : activeTab === 'podcasts' ? '🎙️' : '🌟'}
               </motion.div>
               <h3 className="text-3xl font-bold text-white mb-4">
-                {searchTerm ? 'No podcasts found' : 'No podcasts yet'}
+                {searchTerm ? 'No results found' : `No ${activeTab === 'all' ? 'content' : activeTab} yet`}
               </h3>
               <p className="text-white/60 text-lg">
-                {searchTerm ? 'Try different search terms' : 'Be the first to upload!'}
+                {searchTerm ? 'Try different search terms' : 'Be the first to share!'}
               </p>
             </motion.div>
           )}

@@ -33,12 +33,72 @@ export const podcastAPI = {
   getUserPodcasts: (userId) => api.get(`/podcasts/user/${userId}`), // ← Fixed endpoint
 };
 
+// // Keep existing podcastAPI
+// export const podcastAPI = {
+//   getAll: () => api.get('/podcasts'),
+//   getById: (id) => api.get(`/podcasts/${id}`),
+//   upload: (formData) => api.post('/podcasts', formData, {
+//     headers: { 'Content-Type': 'multipart/form-data' }
+//   }),
+//   delete: (id) => api.delete(`/podcasts/${id}`),
+//   play: (id) => api.post(`/podcasts/${id}/play`),
+//   getUserPodcasts: (userId) => api.get(`/podcasts/user/${userId}`)
+// };
+
+// Add new postAPI for multi-media posts
+export const postAPI = {
+  getAll: () => api.get('/posts'),
+  getById: (id) => api.get(`/posts/${id}`),
+  create: (formData) => api.post('/posts', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  delete: (id) => api.delete(`/posts/${id}`),
+  view: (id) => api.post(`/posts/${id}/view`),
+  like: (id) => api.post(`/posts/${id}/like`),
+  getUserPosts: (userId) => api.get(`/posts/user/${userId}`)
+};
+
+
+
 export const playlistAPI = {
   getAll: () => api.get('/playlists'),
   getById: (id) => api.get(`/playlists/${id}`),
   create: (data) => api.post('/playlists', data),
   addPodcast: (playlistId, podcastId) => api.post(`/playlists/${playlistId}/podcasts/${podcastId}`),
   removePodcast: (playlistId, podcastId) => api.delete(`/playlists/${playlistId}/podcasts/${podcastId}`),
+};
+
+// File Share API (NEW - for file sharing feature)
+export const fileAPI = {
+  // Get user's file shares (requires auth)
+  getAll: () => api.get('/files'),
+  
+  // Upload single file (backward compatibility)
+  upload: (formData) => api.post('/files', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  
+  // Upload multiple files (up to 10)
+  uploadMultiple: (formData) => api.post('/files/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  
+  // Get shared files info (public - no auth required)
+  getShared: (shareId, accessCode) => {
+    const url = accessCode 
+      ? `/files/share/${shareId}?accessCode=${accessCode}`
+      : `/files/share/${shareId}`;
+    return axios.get(`${API_URL}${url}`); // Use axios directly (no auth)
+  },
+  
+  // Download files (public - no auth required)
+  download: (shareId, data) => axios.post(`${API_URL}/files/download/${shareId}`, data), // Use axios directly
+  
+  // Delete file share (requires auth)
+  delete: (id) => api.delete(`/files/${id}`),
+  
+  // Get QR code (requires auth)
+  getQRCode: (id) => api.get(`/files/${id}/qrcode`)
 };
 
 export default api;

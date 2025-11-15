@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiHome, FiUpload, FiMusic, FiList, FiUser, FiLogOut, FiMenu, FiX } from 'react-icons/fi';
+import { FiHome, FiUpload, FiMusic, FiList, FiUser, FiLogOut, FiMenu, FiX, FiFileText, FiImage } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { FiShare2, FiFolder } from 'react-icons/fi';
@@ -27,10 +27,13 @@ const Navbar = () => {
   ];
 
   const userNavItems = [
-    { path: '/upload', label: 'Upload', icon: FiUpload },
-    { path: '/my-podcasts', label: 'My Podcasts', icon: FiMusic },
+    // { path: '/upload', label: 'Upload Podcast', icon: FiUpload },
+    { path: '/new-post', label: 'New Post', icon: FiUpload },
+    // { path: '/my-podcasts', label: 'My Podcast', icon: FiImage },
+    { path: '/my-posts', label: 'My Post', icon: FiUpload },
+    // { path: '/post/:id', label: 'Post Detail', icon: FiUpload },
     { path: '/file-share', label: 'Upload Files', icon: FiShare2 },
-{ path: '/my-files', label: 'My Files', icon: FiFolder },
+    { path: '/my-files', label: 'My Files', icon: FiFolder },
   ];
   
 

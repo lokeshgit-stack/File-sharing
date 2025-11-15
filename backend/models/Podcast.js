@@ -39,8 +39,9 @@ const podcastSchema = new mongoose.Schema({
   },
   mediaType: {              // ← New: 'audio' or 'video'
     type: String,
-    enum: ['audio', 'video'],
-    default: 'audio'
+    enum: ['image', 'audio', 'video'],
+    default: 'video',
+    required: true
   },
   plays: {
     type: Number,

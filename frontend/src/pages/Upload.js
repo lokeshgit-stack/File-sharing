@@ -111,7 +111,7 @@ const Upload = () => {
               <span className="text-white">Podcast</span>
             </motion.h1>
             <p className="text-white/70 text-lg">
-              Share your voice with the world
+              Share your Images, Videos and Voice with the world
             </p>
           </div>
 
@@ -129,7 +129,7 @@ const Upload = () => {
               whileHover={{ scale: 1.01 }}
             >
               <label className="block text-white font-bold mb-3 text-lg">
-                Podcast Title *
+                Post Title *
               </label>
               <input 
                 type="text"
@@ -184,13 +184,13 @@ const Upload = () => {
                 <input 
               ref={fileInputRef}
               type="file"
-              accept=".mp3,.wav,.ogg,.m4a,.mp4,.mov,.avi,.mkv,.webm"  // ← Updated
+              accept=".jpg,.jpeg,.png,.webp,.heic,.mp3,.wav,.ogg,.m4a,.mp4,.mov,.avi,.mkv,.webm"
               onChange={handleFileChange}
               className="hidden"
             />
 
             <label className="block text-white font-bold mb-3 text-lg">
-              Media File * (Audio: MP3, WAV, OGG, M4A | Video: MP4, MOV, AVI, WEBM)
+              Share Your Post 
             </label>
                 <AnimatePresence mode="wait">
                   {formData.file ? (

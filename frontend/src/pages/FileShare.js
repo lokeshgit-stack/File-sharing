@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiUpload, FiFile, FiLock, FiCalendar, FiDownload, FiX } from 'react-icons/fi';
-import axios from 'axios';
+import { FiUpload, FiFile, FiLock, FiCalendar, FiDownload } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { fileAPI } from '../services/api'; // Use fileAPI instead of direct axios
 import FileShareResult from './FileShareResult';
 
 const FileShare = () => {
@@ -61,26 +61,18 @@ const FileShare = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-      const { data: result } = await axios.post('https://file-sharing-oaqd.onrender.com/api/files' || 'http://localhost:5000/api' , data, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        },
-        onUploadProgress: (progressEvent) => {
-          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(percent);
-        }
-      });
-
+      // Use fileAPI.upload() from your api.js
+      const { data: result } = await fileAPI.upload(data);
+      
       setUploadedFile(result);
       toast.success('File uploaded successfully!');
-      setTimeout(() => navigate('/my-files'), 10);
+      setTimeout(() => navigate('/my-files'), 1000);
     } catch (error) {
+      console.error('Upload error:', error);
       toast.error(error.response?.data?.error || 'Upload failed');
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -126,24 +118,41 @@ const FileShare = () => {
             {/* File Upload */}
             <div className="mb-6">
               <label className="block text-white font-bold mb-3">File (Max 200MB) *</label>
-              <div className={`border-2 border-dashed rounded-2xl p-8 text-center ${formData.file ? 'border-green-500' : 'border-white/30'}`}>
+              <div className={`border-2 border-dashed rounded-2xl p-8 text-center transition ${formData.file ? 'border-green-500 bg-green-500/10' : 'border-white/30 hover:border-purple-500'}`}>
                 <input
                   type="file"
                   onChange={handleFileChange}
                   className="hidden"
                   id="file-input"
+                  disabled={uploading}
                 />
                 <label htmlFor="file-input" className="cursor-pointer">
                   {formData.file ? (
                     <div>
                       <FiFile className="text-6xl text-green-400 mx-auto mb-4" />
-                      <p className="text-white">{formData.file.name}</p>
-                      <p className="text-white/60 text-sm">{(formData.file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                      <p className="text-white font-semibold">{formData.file.name}</p>
+                      <p className="text-white/60 text-sm mt-1">{(formData.file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setFormData({ ...formData, file: null });
+                        }}
+                        className="mt-3 text-red-400 hover:text-red-300 text-sm"
+                      >
+                        Remove
+                      </button>
                     </div>
                   ) : (
                     <div>
-                      <FiUpload className="text-6xl text-purple-400 mx-auto mb-4" />
-                      <p className="text-white">Click to select file</p>
+                      <motion.div
+                        animate={{ y: [0, -10, 0] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      >
+                        <FiUpload className="text-6xl text-purple-400 mx-auto mb-4" />
+                      </motion.div>
+                      <p className="text-white font-semibold">Click to select file</p>
+                      <p className="text-white/60 text-sm mt-1">or drag and drop</p>
                     </div>
                   )}
                 </label>
@@ -158,20 +167,22 @@ const FileShare = () => {
                 required
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full glass-effect text-white px-6 py-4 rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full glass-effect text-white px-6 py-4 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 placeholder-white/40"
                 placeholder="Enter file title"
+                disabled={uploading}
               />
             </div>
 
             {/* Description */}
             <div className="mb-6">
-              <label className="block text-white font-bold mb-3">Description</label>
+              <label className="block text-white font-bold mb-3">Description (Optional)</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full glass-effect text-white px-6 py-4 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                className="w-full glass-effect text-white px-6 py-4 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder-white/40"
                 rows="3"
-                placeholder="Optional description"
+                placeholder="Add a description..."
+                disabled={uploading}
               />
             </div>
 
@@ -179,25 +190,29 @@ const FileShare = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               {/* Password Protection */}
               <div>
-                <label className="flex items-center space-x-3 mb-3">
+                <label className="flex items-center space-x-3 mb-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={formData.isPasswordProtected}
                     onChange={(e) => setFormData({ ...formData, isPasswordProtected: e.target.checked })}
-                    className="w-5 h-5"
+                    className="w-5 h-5 cursor-pointer"
+                    disabled={uploading}
                   />
                   <span className="text-white font-bold flex items-center">
                     <FiLock className="mr-2" /> Password Protect
                   </span>
                 </label>
                 {formData.isPasswordProtected && (
-                  <input
+                  <motion.input
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full glass-effect text-white px-4 py-3 rounded-xl outline-none"
+                    className="w-full glass-effect text-white px-4 py-3 rounded-xl outline-none placeholder-white/40"
                     placeholder="Enter password"
                     required={formData.isPasswordProtected}
+                    disabled={uploading}
                   />
                 )}
               </div>
@@ -211,9 +226,10 @@ const FileShare = () => {
                   type="number"
                   value={formData.expiryDays}
                   onChange={(e) => setFormData({ ...formData, expiryDays: e.target.value })}
-                  className="w-full glass-effect text-white px-4 py-3 rounded-xl outline-none"
-                  placeholder="Leave empty for never"
+                  className="w-full glass-effect text-white px-4 py-3 rounded-xl outline-none placeholder-white/40"
+                  placeholder="Never expires"
                   min="1"
+                  disabled={uploading}
                 />
               </div>
             </div>
@@ -227,35 +243,52 @@ const FileShare = () => {
                 type="number"
                 value={formData.maxDownloads}
                 onChange={(e) => setFormData({ ...formData, maxDownloads: e.target.value })}
-                className="w-full glass-effect text-white px-4 py-3 rounded-xl outline-none"
-                placeholder="0"
+                className="w-full glass-effect text-white px-4 py-3 rounded-xl outline-none placeholder-white/40"
+                placeholder="Unlimited"
                 min="0"
+                disabled={uploading}
               />
             </div>
 
             {/* Progress Bar */}
             {uploading && (
-              <div className="mb-6">
+              <motion.div 
+                className="mb-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
                 <div className="h-4 bg-white/10 rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+                    className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500"
                     initial={{ width: 0 }}
                     animate={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <p className="text-center text-white/80 mt-2">{uploadProgress}%</p>
-              </div>
+                <p className="text-center text-white/80 mt-2">Uploading... {uploadProgress}%</p>
+              </motion.div>
             )}
 
             {/* Submit */}
             <motion.button
               type="submit"
-              disabled={uploading || !formData.file}
-              whileHover={{ scale: 1.02 }}
+              disabled={uploading || !formData.file || !formData.title}
+              whileHover={{ scale: uploading ? 1 : 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-bold disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg"
             >
-              {uploading ? 'Uploading...' : 'Upload & Generate Share Link'}
+              {uploading ? (
+                <span className="flex items-center justify-center space-x-2">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  >
+                    <FiUpload />
+                  </motion.div>
+                  <span>Uploading...</span>
+                </span>
+              ) : (
+                'Upload & Generate Share Link'
+              )}
             </motion.button>
           </form>
         </motion.div>

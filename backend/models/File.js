@@ -1,13 +1,9 @@
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 
-const fileSchema = new mongoose.Schema({
+// Individual file item schema (for multiple files in one share)
+const fileItemSchema = new mongoose.Schema({
   title: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  description: {
     type: String,
     trim: true
   },
@@ -39,17 +35,30 @@ const fileSchema = new mongoose.Schema({
     type: String,
     enum: ['document', 'image', 'video', 'audio', 'archive', 'other'],
     default: 'other'
+  }
+});
+
+// Main file schema (collection of files to share)
+const fileSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    trim: true
   },
+  description: {
+    type: String,
+    trim: true
+  },
+  files: [fileItemSchema], // Array of files
   shareId: {
     type: String,
     unique: true,
     required: true,
+    index: true,
     default: () => crypto.randomBytes(8).toString('hex')
   },
   accessCode: {
     type: String,
-    required: true,
-    default: () => crypto.randomBytes(4).toString('hex').toUpperCase()
+    default: null // Optional access code for password protection
   },
   isPublic: {
     type: Boolean,
@@ -75,6 +84,10 @@ const fileSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  downloads: {
+    type: Number,
+    default: 0
+  },
   views: {
     type: Number,
     default: 0
@@ -91,7 +104,7 @@ const fileSchema = new mongoose.Schema({
   sharedWith: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }],
+  }]
 });
 
 // Generate share ID before saving
@@ -99,13 +112,16 @@ fileSchema.pre('save', function(next) {
   if (!this.shareId) {
     this.shareId = crypto.randomBytes(8).toString('hex');
   }
-  if (!this.accessCode) {
-    this.accessCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+  
+  // Set isPasswordProtected based on accessCode presence
+  if (this.accessCode) {
+    this.isPasswordProtected = true;
   }
+  
   next();
 });
 
-// Check if file is expired
+// Check if file share is expired
 fileSchema.methods.isExpired = function() {
   if (!this.expiresAt) return false;
   return new Date() > this.expiresAt;
@@ -114,8 +130,27 @@ fileSchema.methods.isExpired = function() {
 // Check if max downloads reached
 fileSchema.methods.canDownload = function() {
   if (this.isExpired()) return false;
-  if (this.maxDownloads === 0) return true;
-  return this.downloadCount < this.maxDownloads;
+  if (this.maxDownloads === 0) return true; // Unlimited
+  return this.downloads < this.maxDownloads;
+};
+
+// Increment download count
+fileSchema.methods.incrementDownload = async function() {
+  this.downloads += 1;
+  this.downloadCount += 1;
+  await this.save();
+};
+
+// Increment view count
+fileSchema.methods.incrementView = async function() {
+  this.views += 1;
+  await this.save();
+};
+
+// Validate access code
+fileSchema.methods.validateAccessCode = function(code) {
+  if (!this.accessCode) return true; // No code required
+  return this.accessCode === code;
 };
 
 // Indexes
