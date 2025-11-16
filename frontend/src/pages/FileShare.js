@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiUpload, FiFile, FiLock, FiCalendar, FiDownload } from 'react-icons/fi';
@@ -23,6 +23,13 @@ const FileShare = () => {
     expiryDays: '',
     maxDownloads: ''
   });
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+  const isDark = theme === 'dark';
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) setTheme(savedTheme);
+  }, []);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -43,6 +50,16 @@ const FileShare = () => {
       return;
     }
 
+    if (!formData.title.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+
+    if (formData.isPasswordProtected && !formData.password.trim()) {
+      toast.error('Password is required if enabled');
+      return;
+    }
+
     setUploading(true);
     const data = new FormData();
     data.append('title', formData.title);
@@ -50,20 +67,18 @@ const FileShare = () => {
     data.append('file', formData.file);
     data.append('isPublic', formData.isPublic);
     data.append('isPasswordProtected', formData.isPasswordProtected);
-    if (formData.isPasswordProtected) {
-      data.append('password', formData.password);
-    }
-    if (formData.expiryDays) {
-      data.append('expiryDays', formData.expiryDays);
-    }
-    if (formData.maxDownloads) {
-      data.append('maxDownloads', formData.maxDownloads);
-    }
+    if (formData.isPasswordProtected) data.append('password', formData.password);
+    if (formData.expiryDays) data.append('expiryDays', formData.expiryDays);
+    if (formData.maxDownloads) data.append('maxDownloads', formData.maxDownloads);
 
     try {
-      // Use fileAPI.upload() from your api.js
-      const { data: result } = await fileAPI.upload(data);
-      
+      const { data: result } = await fileAPI.upload(data, {
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        }
+      });
+
       setUploadedFile(result);
       toast.success('File uploaded successfully!');
       setTimeout(() => navigate('/my-files'), 1000);
@@ -73,6 +88,157 @@ const FileShare = () => {
     } finally {
       setUploading(false);
       setUploadProgress(0);
+    }
+  };
+
+  // Styles fixed and enhanced for alignment and appearance
+  const styles = {
+    container: {
+      minHeight: '100vh',
+      padding: '3rem 1rem',
+      background: isDark 
+        ? 'linear-gradient(135deg, #0a0e27 0%, #1e2749 50%, #0a0e27 100%)'
+        : 'linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 50%, #f8f9fa 100%)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+    },
+    wrapper: {
+      background: isDark 
+        ? 'rgba(30, 39, 73, 0.8)' 
+        : 'rgba(255, 255, 255, 0.95)',
+      backdropFilter: 'blur(20px)',
+      borderRadius: '24px',
+      padding: '2rem',
+      boxShadow: isDark 
+        ? '0 20px 60px rgba(0,0,0,0.6)' 
+        : '0 10px 40px rgba(0,0,0,0.1)',
+      border: `1px solid ${isDark ? 'rgba(0,229,255,0.2)' : 'rgba(33,150,243,0.2)'}`,
+      width: '100%',
+      maxWidth: '600px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '1rem',
+    },
+    titleContainer: {
+      textAlign: 'center',
+      marginBottom: '2rem',
+    },
+    title: {
+      fontSize: '2.8rem',
+      fontWeight: '900',
+      color: isDark ? '#ffffff' : '#1a1a1a',
+      userSelect: 'none',
+      background: 'linear-gradient(135deg, #00e5ff 0%, #7c4dff 100%)',
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      backgroundClip: 'text',
+    },
+    subtitle: {
+      color: isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.6)',
+      fontSize: '1rem',
+      userSelect: 'none',
+    },
+    label: {
+      display: 'block',
+      fontWeight: '700',
+      marginBottom: '0.5rem',
+      color: isDark ? '#ffffff' : '#1a1a1a',
+      cursor: 'pointer',
+      userSelect: 'none',
+    },
+    input: {
+      width: '100%',
+      padding: '0.85rem 1rem',
+      borderRadius: '12px',
+      border: `1.5px solid ${isDark ? 'rgba(0,229,255,0.3)' : 'rgba(33,150,243,0.5)'}`,
+      background: isDark ? 'rgba(10,14,39,0.7)' : 'rgba(255,255,255,0.9)',
+      color: isDark ? '#fff' : '#1a1a1a',
+      fontSize: '1rem',
+      outline: 'none',
+      transition: 'border-color 0.3s ease',
+      marginBottom: '1.5rem',
+    },
+    textarea: {
+      resize: 'vertical',
+      minHeight: '100px',
+      width: '100%',
+      padding: '0.85rem 1rem',
+      borderRadius: '12px',
+      border: `1.5px solid ${isDark ? 'rgba(0,229,255,0.3)' : 'rgba(33,150,243,0.5)'}`,
+      background: isDark ? 'rgba(10,14,39,0.7)' : 'rgba(255,255,255,0.9)',
+      color: isDark ? '#fff' : '#1a1a1a',
+      fontSize: '1rem',
+      outline: 'none',
+      transition: 'border-color 0.3s ease',
+      marginBottom: '1.5rem',
+    },
+    fileUpload: {
+      border: `2px dashed ${isDark ? 'rgba(0,229,255,0.4)' : 'rgba(33,150,243,0.5)'}`,
+      borderRadius: '16px',
+      padding: '3rem 1rem',
+      textAlign: 'center',
+      cursor: uploading ? 'not-allowed' : 'pointer',
+      color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.7)',
+      marginBottom: '2rem',
+      userSelect: 'none',
+    },
+    fileName: {
+      marginTop: '1rem',
+      color: isDark ? '#a5f3fc' : '#2563eb',
+      fontWeight: 'bold',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+    },
+    removeFileBtn: {
+      marginTop: '0.5rem',
+      color: '#ef4444',
+      fontWeight: '600',
+      cursor: 'pointer',
+      background: 'none',
+      border: 'none',
+      fontSize: '0.9rem',
+      textDecoration: 'underline',
+      userSelect: 'none',
+    },
+    submitBtn: {
+      width: '100%',
+      background: uploading ? 'rgba(124, 77, 255, 0.6)' : 'linear-gradient(135deg, #7c4dff 0%, #ec4899 100%)',
+      color: '#fff',
+      padding: '1rem',
+      fontWeight: '700',
+      fontSize: '1.125rem',
+      borderRadius: '9999px',
+      border: 'none',
+      cursor: uploading ? 'not-allowed' : 'pointer',
+      boxShadow: '0 4px 20px rgba(124, 77, 255, 0.4)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: '0.5rem',
+      transition: 'all 0.3s ease',
+    },
+    securityOptionsContainer: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: '1rem',
+      marginBottom: '1.5rem',
+      alignItems: 'center',
+    },
+    checkboxLabel: {
+      cursor: 'pointer',
+      userSelect: 'none',
+      color: isDark ? '#fff' : '#1a1a1a',
+      fontWeight: '700',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      minWidth: '150px',
+    },
+    securityInput: {
+      flex: '1 1 140px',
+      minWidth: '140px',
     }
   };
 
@@ -93,206 +259,169 @@ const FileShare = () => {
   }
 
   return (
-    <div className="min-h-screen py-12 px-4">
-      <div className="container mx-auto max-w-3xl">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="text-center mb-12">
-            <motion.h1 
-              className="text-5xl font-bold mb-4"
-              initial={{ scale: 0.5 }}
-              animate={{ scale: 1 }}
-            >
-              <span className="gradient-text">Secure File</span>
-              <br />
-              <span className="text-white">Sharing</span>
-            </motion.h1>
-            <p className="text-white/70 text-lg">
-              Upload and share files securely with QR codes
-            </p>
+    <div style={styles.container}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={styles.wrapper}>
+        <div style={styles.titleContainer}>
+          <motion.h1 style={styles.title} initial={{ scale: 0.5 }} animate={{ scale: 1 }}>
+            Secure File<br />Sharing
+          </motion.h1>
+          <p style={styles.subtitle}>Upload and share files securely with QR codes</p>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          {/* File Upload */}
+          <label htmlFor="file-upload" style={styles.label}>
+            File (Max 200MB) *
+          </label>
+          <div style={styles.fileUpload} onClick={() => !uploading && document.getElementById('file-upload').click()}>
+            <input
+              id="file-upload"
+              type="file"
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+              disabled={uploading}
+            />
+            {formData.file ? (
+              <>
+                <FiFile size={72} color="#22c55e" style={{ display: 'block', margin: '0 auto 1rem' }} />
+                <p style={styles.fileName} title={formData.file.name}>{formData.file.name}</p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setFormData({ ...formData, file: null });
+                  }}
+                  style={styles.removeFileBtn}
+                  disabled={uploading}
+                >
+                  Remove
+                </button>
+              </>
+            ) : (
+              <>
+                {/* <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 2, repeat: Infinity }}>
+                  <FiUpload size={72} color={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.3)'} />
+                </motion.div> */}
+                <p style={{ color: isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)', fontSize: '1rem' }}>
+                  Click to select file
+                </p>
+                <p style={{ color: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.3)', fontSize: '0.85rem' }}>
+                  or drag and drop
+                </p>
+              </>
+            )}
           </div>
 
-          <form onSubmit={handleSubmit} className="glass-effect rounded-3xl p-8">
-            {/* File Upload */}
-            <div className="mb-6">
-              <label className="block text-white font-bold mb-3">File (Max 200MB) *</label>
-              <div className={`border-2 border-dashed rounded-2xl p-8 text-center transition ${formData.file ? 'border-green-500 bg-green-500/10' : 'border-white/30 hover:border-purple-500'}`}>
-                <input
-                  type="file"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="file-input"
-                  disabled={uploading}
-                />
-                <label htmlFor="file-input" className="cursor-pointer">
-                  {formData.file ? (
-                    <div>
-                      <FiFile className="text-6xl text-green-400 mx-auto mb-4" />
-                      <p className="text-white font-semibold">{formData.file.name}</p>
-                      <p className="text-white/60 text-sm mt-1">{(formData.file.size / (1024 * 1024)).toFixed(2)} MB</p>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setFormData({ ...formData, file: null });
-                        }}
-                        className="mt-3 text-red-400 hover:text-red-300 text-sm"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <div>
-                      <motion.div
-                        animate={{ y: [0, -10, 0] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      >
-                        <FiUpload className="text-6xl text-purple-400 mx-auto mb-4" />
-                      </motion.div>
-                      <p className="text-white font-semibold">Click to select file</p>
-                      <p className="text-white/60 text-sm mt-1">or drag and drop</p>
-                    </div>
-                  )}
-                </label>
-              </div>
-            </div>
+          {/* Title */}
+          <label htmlFor="title" style={styles.label}>Title *</label>
+          <input
+            id="title"
+            type="text"
+            required
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            style={styles.input}
+            placeholder="Enter file title"
+            disabled={uploading}
+          />
 
-            {/* Title */}
-            <div className="mb-6">
-              <label className="block text-white font-bold mb-3">Title *</label>
+          {/* Description */}
+          <label htmlFor="description" style={styles.label}>Description (Optional)</label>
+          <textarea
+            id="description"
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            rows="3"
+            style={styles.textarea}
+            placeholder="Add a description..."
+            disabled={uploading}
+          />
+
+          {/* Security Options */}
+          <div style={styles.securityOptionsContainer}>
+            {/* Password Protect */}
+            <label style={styles.checkboxLabel}>
               <input
-                type="text"
+                type="checkbox"
+                checked={formData.isPasswordProtected}
+                onChange={(e) => setFormData({ ...formData, isPasswordProtected: e.target.checked })}
+                disabled={uploading}
+              />
+              <FiLock />
+              Password Protect
+            </label>
+
+            {/* Password Input */}
+            {formData.isPasswordProtected && (
+              <input
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                style={styles.input}
+                placeholder="Enter password"
                 required
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full glass-effect text-white px-6 py-4 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 placeholder-white/40"
-                placeholder="Enter file title"
                 disabled={uploading}
               />
-            </div>
+            )}
 
-            {/* Description */}
-            <div className="mb-6">
-              <label className="block text-white font-bold mb-3">Description (Optional)</label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full glass-effect text-white px-6 py-4 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder-white/40"
-                rows="3"
-                placeholder="Add a description..."
+            {/* Expiry Days */}
+            <div style={styles.securityInput}>
+              <label style={styles.label}>
+                <FiCalendar style={{ marginRight: '0.4rem' }} />
+                Expires In (Days)
+              </label>
+              <input
+                type="number"
+                value={formData.expiryDays}
+                onChange={(e) => setFormData({ ...formData, expiryDays: e.target.value })}
+                style={styles.input}
+                placeholder="Never expires"
+                min="1"
                 disabled={uploading}
               />
-            </div>
-
-            {/* Security Options */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Password Protection */}
-              <div>
-                <label className="flex items-center space-x-3 mb-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.isPasswordProtected}
-                    onChange={(e) => setFormData({ ...formData, isPasswordProtected: e.target.checked })}
-                    className="w-5 h-5 cursor-pointer"
-                    disabled={uploading}
-                  />
-                  <span className="text-white font-bold flex items-center">
-                    <FiLock className="mr-2" /> Password Protect
-                  </span>
-                </label>
-                {formData.isPasswordProtected && (
-                  <motion.input
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full glass-effect text-white px-4 py-3 rounded-xl outline-none placeholder-white/40"
-                    placeholder="Enter password"
-                    required={formData.isPasswordProtected}
-                    disabled={uploading}
-                  />
-                )}
-              </div>
-
-              {/* Expiry */}
-              <div>
-                <label className="block text-white font-bold mb-3 flex items-center">
-                  <FiCalendar className="mr-2" /> Expires In (Days)
-                </label>
-                <input
-                  type="number"
-                  value={formData.expiryDays}
-                  onChange={(e) => setFormData({ ...formData, expiryDays: e.target.value })}
-                  className="w-full glass-effect text-white px-4 py-3 rounded-xl outline-none placeholder-white/40"
-                  placeholder="Never expires"
-                  min="1"
-                  disabled={uploading}
-                />
-              </div>
             </div>
 
             {/* Max Downloads */}
-            <div className="mb-6">
-              <label className="block text-white font-bold mb-3 flex items-center">
-                <FiDownload className="mr-2" /> Max Downloads (0 = Unlimited)
+            <div style={styles.securityInput}>
+              <label style={styles.label}>
+                <FiDownload style={{ marginRight: '0.4rem' }} />
+                Max Downloads (0 = Unlimited)
               </label>
               <input
                 type="number"
                 value={formData.maxDownloads}
                 onChange={(e) => setFormData({ ...formData, maxDownloads: e.target.value })}
-                className="w-full glass-effect text-white px-4 py-3 rounded-xl outline-none placeholder-white/40"
+                style={styles.input}
                 placeholder="Unlimited"
                 min="0"
                 disabled={uploading}
               />
             </div>
+          </div>
 
-            {/* Progress Bar */}
-            {uploading && (
-              <motion.div 
-                className="mb-6"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <div className="h-4 bg-white/10 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${uploadProgress}%` }}
-                  />
-                </div>
-                <p className="text-center text-white/80 mt-2">Uploading... {uploadProgress}%</p>
-              </motion.div>
-            )}
-
-            {/* Submit */}
-            <motion.button
-              type="submit"
-              disabled={uploading || !formData.file || !formData.title}
-              whileHover={{ scale: uploading ? 1 : 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg"
-            >
-              {uploading ? (
-                <span className="flex items-center justify-center space-x-2">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                  >
-                    <FiUpload />
-                  </motion.div>
-                  <span>Uploading...</span>
-                </span>
-              ) : (
-                'Upload & Generate Share Link'
-              )}
-            </motion.button>
-          </form>
-        </motion.div>
-      </div>
+          {/* Submit Button */}
+          <motion.button
+            type="submit"
+            disabled={uploading || !formData.file || !formData.title}
+            whileHover={{ scale: uploading ? 1 : 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            style={styles.submitBtn}
+          >
+            {uploading ? (
+              <>
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  style={{ marginRight: '0.5rem' }}
+                >
+                  <FiUpload />
+                </motion.div>
+                Uploading...
+              </>
+            ) : 'Upload & Generate Share Link'}
+          </motion.button>
+        </form>
+      </motion.div>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { FiDownload, FiLock, FiEye, FiClock, FiUser, FiFile, FiAlertCircle } from 'react-icons/fi';
 import { fileAPI } from '../services/api';
 import toast from 'react-hot-toast';
@@ -16,8 +16,17 @@ const PublicFileShare = () => {
   const [requiresPassword, setRequiresPassword] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+  const isDark = theme === 'dark';
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) setTheme(savedTheme);
+  }, []);
+
   useEffect(() => {
     fetchFileShare();
+    // eslint-disable-next-line
   }, [shareId]);
 
   const fetchFileShare = async (code = '') => {
@@ -30,7 +39,6 @@ const PublicFileShare = () => {
       setRequiresPassword(data.isPasswordProtected);
     } catch (err) {
       const errorData = err.response?.data;
-      
       if (errorData?.requiresAccessCode) {
         setRequiresAccessCode(true);
         setError('Access code required');
@@ -66,18 +74,12 @@ const PublicFileShare = () => {
 
     try {
       setDownloading(true);
-      const payload = {
-        accessCode: accessCode || null
-      };
-
-      if (fileShare.isPasswordProtected) {
-        payload.password = password;
-      }
+      const payload = { accessCode: accessCode || null };
+      if (fileShare.isPasswordProtected) payload.password = password;
 
       const { data } = await fileAPI.download(shareId, payload);
 
       if (data.downloads && data.downloads.length > 0) {
-        // Download all files with staggered timing
         data.downloads.forEach((download, index) => {
           setTimeout(() => {
             const link = document.createElement('a');
@@ -90,13 +92,10 @@ const PublicFileShare = () => {
         });
 
         toast.success(`Downloading ${data.downloads.length} file(s)!`);
-        
-        // Refresh file info to update download count
         setTimeout(() => fetchFileShare(accessCode), 2000);
       }
     } catch (err) {
       const errorMsg = err.response?.data?.error;
-      
       if (errorMsg === 'Invalid password') {
         toast.error('Incorrect password');
         setPassword('');
@@ -115,207 +114,286 @@ const PublicFileShare = () => {
     }
   };
 
+  const styles = {
+    container: {
+      minHeight: '100vh',
+      background: isDark
+        ? 'linear-gradient(135deg, #0a0e27 0%, #1e2749 50%, #0a0e27 100%)'
+        : 'linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 50%, #f8f9fa 100%)',
+      padding: '3rem 1rem',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+    },
+    box: {
+      background: isDark ? 'rgba(30, 39, 73, 0.8)' : 'rgba(255, 255, 255, 0.95)',
+      backdropFilter: 'blur(20px)',
+      borderRadius: '24px',
+      padding: '2rem',
+      boxShadow: isDark
+        ? '0 20px 60px rgba(0,0,0,0.6)'
+        : '0 10px 40px rgba(0,0,0,0.1)',
+      border: `1px solid ${isDark ? 'rgba(0,229,255,0.2)' : 'rgba(33,150,243,0.2)'}`,
+      width: '100%',
+      maxWidth: 600,
+      textAlign: 'center',
+    },
+    iconLarge: {
+      fontSize: '6rem',
+      marginBottom: '1rem',
+      color: isDark ? '#7c4dff' : '#6b21a8',
+    },
+    heading: {
+      fontSize: '2rem',
+      fontWeight: '700',
+      color: isDark ? '#ffffff' : '#1a1a1a',
+      marginBottom: '1rem',
+      userSelect: 'none',
+    },
+    textMuted: {
+      color: isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+      marginBottom: '1.5rem',
+    },
+    formControl: {
+      width: '100%',
+      padding: '0.75rem 1rem',
+      borderRadius: '12px',
+      border: `1.5px solid ${isDark ? 'rgba(0,229,255,0.3)' : 'rgba(33,150,243,0.5)'}`,
+      background: isDark ? 'rgba(10,14,39,0.7)' : '#fff',
+      color: isDark ? '#fff' : '#111',
+      fontSize: '1rem',
+      outline: 'none',
+      marginBottom: '1rem',
+    },
+    button: {
+      width: '100%',
+      padding: '1rem',
+      borderRadius: '9999px',
+      border: 'none',
+      background:
+        'linear-gradient(135deg, #7c4dff 0%, #ec4899 100%)',
+      color: '#fff',
+      fontWeight: '700',
+      fontSize: '1.2rem',
+      cursor: 'pointer',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: '0.75rem',
+      userSelect: 'none',
+      opacity: downloading ? 0.7 : 1,
+      pointerEvents: downloading ? 'none' : 'auto',
+      transition: 'all 0.3s ease',
+    },
+    infoGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+      gap: '1rem',
+      marginBottom: '2rem',
+      textAlign: 'center',
+    },
+    infoBox: {
+      background: isDark ? 'rgba(10,14,39,0.5)' : '#f5f5f5',
+      borderRadius: '16px',
+      padding: '1rem',
+      color: isDark ? '#ccc' : '#444',
+      userSelect: 'none',
+    },
+    infoLabel: {
+      fontSize: '0.75rem',
+      fontWeight: '600',
+      marginBottom: '0.25rem',
+      color: isDark ? '#888' : '#777',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '0.5rem',
+    },
+    infoValue: {
+      fontWeight: '700',
+      fontSize: '1.1rem',
+      color: isDark ? '#fff' : '#111',
+    },
+    fileList: {
+      textAlign: 'left',
+      maxHeight: '300px',
+      overflowY: 'auto',
+    },
+    fileItem: {
+      background: isDark ? 'rgba(30, 39, 73, 0.4)' : '#f9f9f9',
+      padding: '0.75rem 1rem',
+      borderRadius: '12px',
+      marginBottom: '0.5rem',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '1rem',
+      color: isDark ? '#ddd' : '#333',
+      userSelect: 'text',
+    },
+    fileName: {
+      overflow: 'hidden',
+      whiteSpace: 'nowrap',
+      textOverflow: 'ellipsis',
+      flexGrow: 1,
+    },
+    passwordInputWrapper: {
+      marginBottom: '1.5rem',
+    },
+    smallTextCentered: {
+      textAlign: 'center',
+      color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
+      fontSize: '0.85rem',
+      userSelect: 'none',
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="text-6xl"
-        >
+      <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: styles.container.background }}>
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} style={{ fontSize: '4rem', color: isDark ? '#0eefff' : '#2196f3' }}>
           📦
         </motion.div>
       </div>
     );
   }
 
-  // Access code required
   if (requiresAccessCode && !fileShare) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="glass-effect rounded-2xl p-8 max-w-md w-full"
-        >
-          <FiLock className="text-6xl text-purple-400 mx-auto mb-6" />
-          <h2 className="text-3xl font-bold text-white text-center mb-4">
-            Access Code Required
-          </h2>
-          <p className="text-white/70 text-center mb-6">
-            This file requires an access code to view
-          </p>
+      <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
+        <motion.div style={styles.wrapper} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+          <FiLock style={{ fontSize: '6rem', color: '#a78bfa', marginBottom: '1rem' }} />
+          <h2 style={{ ...styles.heading, color: isDark ? '#fff' : '#1a1a1a' }}>Access Code Required</h2>
+          <p style={{ ...styles.smallTextCentered, marginBottom: '1.5rem' }}>This file requires an access code to view</p>
           <form onSubmit={handleAccessCodeSubmit}>
             <input
               type="text"
               value={accessCode}
               onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
               placeholder="Enter access code"
-              className="w-full glass-effect text-white px-4 py-3 rounded-lg mb-4 text-center text-lg font-mono uppercase placeholder-white/40"
+              style={{ ...styles.input, textAlign: 'center', fontFamily: 'monospace', fontWeight: '700', letterSpacing: '0.2em' }}
               required
               autoFocus
             />
-            <button
-              type="submit"
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transition"
-            >
-              Access Files
-            </button>
+            <button type="submit" style={styles.submitBtn}>Access Files</button>
           </form>
         </motion.div>
       </div>
     );
   }
 
-  // Error state
   if (error && !fileShare) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
-          <FiAlertCircle className="text-6xl text-red-400 mx-auto mb-4" />
-          <h2 className="text-3xl font-bold text-white mb-2">{error}</h2>
-          <p className="text-white/60 mb-6">The link may be expired, invalid, or removed</p>
+      <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
+        <motion.div style={{ textAlign: 'center' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <FiAlertCircle style={{ fontSize: '6rem', color: '#f87171', marginBottom: '1rem' }} />
+          <h2 style={{ fontSize: '2rem', fontWeight: '700', color: isDark ? '#fff' : '#1a1a1a' }}>{error}</h2>
+          <p style={{ ...styles.smallTextCentered, marginBottom: '1.5rem' }}>The link may be expired, invalid, or removed</p>
         </motion.div>
       </div>
     );
   }
 
-  // File share loaded successfully
   return (
-    <div className="min-h-screen py-12 px-4">
-      <div className="container mx-auto max-w-4xl">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-effect rounded-3xl p-8"
+    <div style={styles.container}>
+      <div style={styles.wrapper}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }} style={{ fontSize: '5rem', marginBottom: '1rem' }}>
+            📦
+          </motion.div>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: '700', color: isDark ? '#fff' : '#111', marginBottom: '0.5rem' }}>
+            {fileShare?.title || 'Shared Files'}
+          </h1>
+          {fileShare?.description && <p style={{ color: isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)', fontSize: '1rem' }}>{fileShare.description}</p>}
+        </div>
+
+        <div style={styles.infoGrid}>
+          <div style={styles.infoBox}>
+            <div style={styles.infoLabel}><FiUser /> Shared by</div>
+            <div style={styles.infoValue}>{fileShare?.owner}</div>
+          </div>
+          <div style={styles.infoBox}>
+            <div style={styles.infoLabel}><FiFile /> Files</div>
+            <div style={styles.infoValue}>{fileShare?.files?.length || 0}</div>
+          </div>
+          <div style={styles.infoBox}>
+            <div style={styles.infoLabel}><FiEye /> Views</div>
+            <div style={styles.infoValue}>{fileShare?.views || 0}</div>
+          </div>
+          <div style={styles.infoBox}>
+            <div style={styles.infoLabel}><FiDownload /> Downloads</div>
+            <div style={styles.infoValue}>
+              {fileShare?.downloads || 0}
+              {fileShare?.maxDownloads > 0 ? ` / ${fileShare.maxDownloads}` : ''}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ textAlign: 'left', marginBottom: '2rem' }}>
+          <h3 style={{ color: isDark ? '#fff' : '#111', fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem' }}>Files</h3>
+          <div style={styles.fileList}>
+            {fileShare?.files?.map((file, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                style={styles.fileItem}
+              >
+                <FiFile style={{ color: '#7c4dff' }} />
+                <span style={styles.fileName} title={file.originalName}>{file.originalName}</span>
+                <small style={{ marginLeft: 'auto', color: isDark ? 'rgba(255,255,255,0.5)' : '#666' }}>
+                  {(file.fileSize / (1024 * 1024)).toFixed(2)} MB
+                </small>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {requiresPassword && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ marginBottom: '1.5rem' }}>
+            <label style={{ ...styles.label, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FiLock /> Password Required
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password to download"
+              style={styles.input}
+              autoFocus
+            />
+          </motion.div>
+        )}
+
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleDownload}
+          disabled={downloading || (requiresPassword && !password)}
+          style={styles.button}
+          aria-label="Download files"
         >
-          {/* Header */}
-          <div className="text-center mb-8">
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="text-6xl mb-4"
-            >
-              📦
-            </motion.div>
-            <h1 className="text-4xl font-bold text-white mb-2">
-              {fileShare?.title || 'Shared Files'}
-            </h1>
-            {fileShare?.description && (
-              <p className="text-white/70 text-lg">{fileShare.description}</p>
-            )}
-          </div>
-
-          {/* File Info */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="glass-effect rounded-lg p-4 text-center">
-              <FiUser className="text-2xl text-purple-400 mx-auto mb-2" />
-              <p className="text-white/60 text-sm">Shared by</p>
-              <p className="text-white font-semibold">{fileShare?.owner}</p>
-            </div>
-            <div className="glass-effect rounded-lg p-4 text-center">
-              <FiFile className="text-2xl text-blue-400 mx-auto mb-2" />
-              <p className="text-white/60 text-sm">Files</p>
-              <p className="text-white font-semibold">{fileShare?.files?.length || 0}</p>
-            </div>
-            <div className="glass-effect rounded-lg p-4 text-center">
-              <FiEye className="text-2xl text-green-400 mx-auto mb-2" />
-              <p className="text-white/60 text-sm">Views</p>
-              <p className="text-white font-semibold">{fileShare?.views || 0}</p>
-            </div>
-            <div className="glass-effect rounded-lg p-4 text-center">
-              <FiDownload className="text-2xl text-pink-400 mx-auto mb-2" />
-              <p className="text-white/60 text-sm">Downloads</p>
-              <p className="text-white font-semibold">
-                {fileShare?.downloads || 0}
-                {fileShare?.maxDownloads > 0 ? ` / ${fileShare.maxDownloads}` : ''}
-              </p>
-            </div>
-          </div>
-
-          {/* Files List */}
-          <div className="mb-8">
-            <h3 className="text-xl font-bold text-white mb-4">Files</h3>
-            <div className="space-y-3">
-              {fileShare?.files?.map((file, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="glass-effect rounded-lg p-4 flex items-center justify-between"
-                >
-                  <div className="flex items-center space-x-3">
-                    <FiFile className="text-2xl text-purple-400" />
-                    <div>
-                      <p className="text-white font-semibold">{file.originalName}</p>
-                      <p className="text-white/60 text-sm">
-                        {(file.fileSize / (1024 * 1024)).toFixed(2)} MB
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-
-          {/* Password Input */}
-          {requiresPassword && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="mb-6"
-            >
-              <label className="block text-white font-bold mb-3 flex items-center">
-                <FiLock className="mr-2" /> Password Required
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password to download"
-                className="w-full glass-effect text-white px-4 py-3 rounded-lg placeholder-white/40"
-              />
-            </motion.div>
-          )}
-
-          {/* Download Button */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleDownload}
-            disabled={downloading || (requiresPassword && !password)}
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-          >
-            {downloading ? (
-              <>
-                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity }}>
-                  <FiDownload />
-                </motion.div>
-                <span>Downloading...</span>
-              </>
-            ) : (
-              <>
+          {downloading ? (
+            <>
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} style={{ marginRight: '0.5rem' }}>
                 <FiDownload />
-                <span>Download {fileShare?.files?.length > 1 ? 'All Files' : 'File'}</span>
-              </>
-            )}
-          </motion.button>
-
-          {/* Expiry Info */}
-          {fileShare?.expiresAt && (
-            <div className="mt-6 text-center">
-              <p className="text-white/60 text-sm flex items-center justify-center">
-                <FiClock className="mr-2" />
-                Expires: {new Date(fileShare.expiresAt).toLocaleString()}
-              </p>
-            </div>
+              </motion.div>
+              Downloading...
+            </>
+          ) : (
+            <>
+              <FiDownload />
+              <span>Download {fileShare?.files?.length > 1 ? 'All Files' : 'File'}</span>
+            </>
           )}
-        </motion.div>
+        </motion.button>
+
+        {fileShare?.expiresAt && (
+          <div style={{ marginTop: '1rem', textAlign: 'center', color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)', fontSize: '0.9rem' }}>
+            <FiClock style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
+            Expires: {new Date(fileShare.expiresAt).toLocaleString()}
+          </div>
+        )}
       </div>
     </div>
   );
