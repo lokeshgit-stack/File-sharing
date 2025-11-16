@@ -47,6 +47,8 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Import routes AFTER middleware
 import authRoutes from './routes/auth.js';
 import podcastRoutes from './routes/podcasts.js';
+import commentRoutes from './routes/comments.js';
+// import Comment from '../models/comment.js';
 import playlistRoutes from './routes/playlists.js';
 import logRoutes from './routes/logs.js';
 import postRoutes from './routes/posts.js';
@@ -69,6 +71,7 @@ app.use('/api/playlists', playlistRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/comments', commentRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -103,10 +106,10 @@ app.use((req, res, next) => {
   });
   
   res.status(404).json({ 
-    error: 'Route not found',
-    method: req.method,
-    requestedUrl: req.originalUrl,
-    availableRoutes: [
+  error: 'Route not found',
+  method: req.method,
+  requestedUrl: req.originalUrl,
+  availableRoutes: [
     'GET /api/health',
     'POST /api/auth/register',
     'POST /api/auth/login',
@@ -130,13 +133,18 @@ app.use((req, res, next) => {
     'GET /api/logs',
     'POST /api/files/upload',
     'GET /api/files/:id',
-    'GET /api/files'
-
-
-    ]
-  });
+    'GET /api/files',
+    
+    // --- New Comment Routes ---
+    'GET /api/comments',
+    'POST /api/comments',
+    'GET /api/comments/:id',
+    'DELETE /api/comments/:id',
+    'GET /api/comments/post/:postId',
+    'POST /api/comments/:id/like'
+  ]
 });
-
+});
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error('❌ Server Error:', err);
