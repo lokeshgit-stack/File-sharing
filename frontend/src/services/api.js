@@ -7,7 +7,6 @@ const api = axios.create({
   baseURL: API_URL,
 });
 
-
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -30,20 +29,8 @@ export const podcastAPI = {
   }),
   delete: (id) => api.delete(`/podcasts/${id}`),
   play: (id) => api.post(`/podcasts/${id}/play`),
-  getUserPodcasts: (userId) => api.get(`/podcasts/user/${userId}`), // ← Fixed endpoint
+  getUserPodcasts: (userId) => api.get(`/podcasts/user/${userId}`),
 };
-
-// // Keep existing podcastAPI
-// export const podcastAPI = {
-//   getAll: () => api.get('/podcasts'),
-//   getById: (id) => api.get(`/podcasts/${id}`),
-//   upload: (formData) => api.post('/podcasts', formData, {
-//     headers: { 'Content-Type': 'multipart/form-data' }
-//   }),
-//   delete: (id) => api.delete(`/podcasts/${id}`),
-//   play: (id) => api.post(`/podcasts/${id}/play`),
-//   getUserPodcasts: (userId) => api.get(`/podcasts/user/${userId}`)
-// };
 
 // Add new postAPI for multi-media posts
 export const postAPI = {
@@ -58,7 +45,23 @@ export const postAPI = {
   getUserPosts: (userId) => api.get(`/posts/user/${userId}`)
 };
 
-
+// Comment API (NEW - for post comments and discussions)
+export const commentAPI = {
+  // Get all comments for a specific post
+  getByPost: (postId) => api.get(`/comments/post/${postId}`),
+  
+  // Create a new comment on a post
+  create: (postId, data) => api.post(`/comments/post/${postId}`, data),
+  
+  // Upvote a comment
+  upvote: (commentId) => api.post(`/comments/${commentId}/upvote`),
+  
+  // Downvote a comment
+  downvote: (commentId) => api.post(`/comments/${commentId}/downvote`),
+  
+  // Delete a comment (soft delete)
+  delete: (commentId) => api.delete(`/comments/${commentId}`)
+};
 
 export const playlistAPI = {
   getAll: () => api.get('/playlists'),
@@ -68,7 +71,7 @@ export const playlistAPI = {
   removePodcast: (playlistId, podcastId) => api.delete(`/playlists/${playlistId}/podcasts/${podcastId}`),
 };
 
-// File Share API (NEW - for file sharing feature)
+// File Share API (for file sharing feature)
 export const fileAPI = {
   // Get user's file shares (requires auth)
   getAll: () => api.get('/files'),
@@ -88,11 +91,11 @@ export const fileAPI = {
     const url = accessCode 
       ? `/files/share/${shareId}?accessCode=${accessCode}`
       : `/files/share/${shareId}`;
-    return axios.get(`${API_URL}${url}`); // Use axios directly (no auth)
+    return axios.get(`${API_URL}${url}`);
   },
   
   // Download files (public - no auth required)
-  download: (shareId, data) => axios.post(`${API_URL}/files/download/${shareId}`, data), // Use axios directly
+  download: (shareId, data) => axios.post(`${API_URL}/files/download/${shareId}`, data),
   
   // Delete file share (requires auth)
   delete: (id) => api.delete(`/files/${id}`),

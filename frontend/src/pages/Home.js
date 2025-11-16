@@ -1,10 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSearch, FiFilter, FiTrendingUp, FiRefreshCw } from 'react-icons/fi';
+import {
+  FiSearch,
+  FiFilter,
+  FiTrendingUp,
+  FiRefreshCw,
+  FiChevronLeft,
+  FiChevronRight,
+} from 'react-icons/fi';
 import { podcastAPI, postAPI } from '../services/api';
 import PodcastCard from '../components/PodcastCard';
 import PostCard from '../components/PostCard';
 import toast from 'react-hot-toast';
+import SeeAllModal from '../components/SeeAllModal';
 
 const Home = () => {
   const [podcasts, setPodcasts] = useState([]);
@@ -16,8 +24,18 @@ const Home = () => {
   const [sortBy, setSortBy] = useState('recent');
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'podcasts', 'posts'
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+  const contentRowRef = useRef(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   const isDark = theme === 'dark';
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user && user._id) {
+      setCurrentUser(user);
+    }
+  }, []);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -35,16 +53,10 @@ const Home = () => {
   const loadContent = async () => {
     try {
       setLoading(true);
-      console.log('Fetching all content...');
-      
       const [podcastsData, postsData] = await Promise.all([
         podcastAPI.getAll(),
-        postAPI.getAll()
+        postAPI.getAll(),
       ]);
-      
-      console.log('Fetched podcasts:', podcastsData.data);
-      console.log('Fetched posts:', postsData.data);
-      
       setPodcasts(podcastsData.data || []);
       setPosts(postsData.data || []);
       setFilteredPodcasts(podcastsData.data || []);
@@ -61,54 +73,41 @@ const Home = () => {
     }
   };
 
-  const loadPodcasts = async () => {
-    try {
-      setLoading(true);
-      console.log('Fetching all podcasts...');
-      
-      const { data } = await podcastAPI.getAll();
-      
-      console.log('Fetched podcasts:', data);
-      setPodcasts(data || []);
-      setFilteredPodcasts(data || []);
-      
-      if (data.length > 0) {
-        // toast.success(`Loaded ${data.length} podcasts!`);
-      }
-    } catch (error) {
-      console.error('Error loading podcasts:', error);
-      toast.error('Failed to load podcasts');
-      setPodcasts([]);
-      setFilteredPodcasts([]);
-    } finally {
-      setLoading(false);
+  const scrollLeft = () => {
+    if (contentRowRef.current) {
+      contentRowRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRight = () => {
+    if (contentRowRef.current) {
+      contentRowRef.current.scrollBy({ left: 300, behavior: 'smooth' });
     }
   };
 
   const filterAndSortContent = () => {
-    // Filter and sort podcasts
     let filteredP = [...podcasts];
-    
     if (searchTerm) {
-      filteredP = filteredP.filter(podcast =>
-        podcast.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        podcast.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        podcast.owner?.toLowerCase().includes(searchTerm.toLowerCase())
+      filteredP = filteredP.filter(
+        (podcast) =>
+          podcast.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          podcast.description
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          podcast.owner?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Filter and sort posts
     let filteredPo = [...posts];
-    
     if (searchTerm) {
-      filteredPo = filteredPo.filter(post =>
-        post.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        post.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        post.owner?.toLowerCase().includes(searchTerm.toLowerCase())
+      filteredPo = filteredPo.filter(
+        (post) =>
+          post.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          post.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          post.owner?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Apply sorting
     const sortFunction = (a, b) => {
       switch (sortBy) {
         case 'popular':
@@ -129,34 +128,20 @@ const Home = () => {
     setFilteredPosts(filteredPo);
   };
 
-  const filterAndSortPodcasts = () => {
-    let filtered = [...podcasts];
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(podcast =>
-        podcast.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        podcast.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        podcast.owner?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+  const loadPodcasts = async () => {
+    try {
+      setLoading(true);
+      const { data } = await podcastAPI.getAll();
+      setPodcasts(data || []);
+      setFilteredPodcasts(data || []);
+    } catch (error) {
+      console.error('Error loading podcasts:', error);
+      toast.error('Failed to load podcasts');
+      setPodcasts([]);
+      setFilteredPodcasts([]);
+    } finally {
+      setLoading(false);
     }
-
-    // Sort
-    switch (sortBy) {
-      case 'popular':
-        filtered.sort((a, b) => (b.plays || 0) - (a.plays || 0));
-        break;
-      case 'recent':
-        filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        break;
-      case 'title':
-        filtered.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
-        break;
-      default:
-        break;
-    }
-
-    setFilteredPodcasts(filtered);
   };
 
   const handleRefresh = () => {
@@ -164,7 +149,6 @@ const Home = () => {
     loadContent();
   };
 
-  // Get content based on active tab
   const getCurrentContent = () => {
     switch (activeTab) {
       case 'podcasts':
@@ -173,8 +157,8 @@ const Home = () => {
         return filteredPosts;
       case 'all':
       default:
-        return [...filteredPosts, ...filteredPodcasts].sort((a, b) => 
-          new Date(b.createdAt) - new Date(a.createdAt)
+        return [...filteredPosts, ...filteredPodcasts].sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
         );
     }
   };
@@ -182,11 +166,10 @@ const Home = () => {
   const currentContent = getCurrentContent();
   const totalCount = filteredPodcasts.length + filteredPosts.length;
 
-  // Inline Styles
   const styles = {
     container: {
       minHeight: '100vh',
-      background: isDark 
+      background: isDark
         ? 'linear-gradient(135deg, #0a0e27 0%, #1e2749 50%, #0a0e27 100%)'
         : 'linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 50%, #f8f9fa 100%)',
       position: 'relative',
@@ -238,18 +221,20 @@ const Home = () => {
       margin: '0 auto',
     },
     searchBar: {
-      background: isDark 
-        ? 'rgba(30, 39, 73, 0.6)' 
+      background: isDark
+        ? 'rgba(30, 39, 73, 0.6)'
         : 'rgba(255, 255, 255, 0.9)',
       backdropFilter: 'blur(20px)',
       borderRadius: '50px',
       padding: '0.5rem',
       display: 'flex',
       alignItems: 'center',
-      boxShadow: isDark 
-        ? '0 8px 32px rgba(0, 0, 0, 0.4)' 
+      boxShadow: isDark
+        ? '0 8px 32px rgba(0, 0, 0, 0.4)'
         : '0 4px 20px rgba(0, 0, 0, 0.1)',
-      border: `1px solid ${isDark ? 'rgba(0, 229, 255, 0.2)' : 'rgba(33, 150, 243, 0.2)'}`,
+      border: `1px solid ${
+        isDark ? 'rgba(0, 229, 255, 0.2)' : 'rgba(33, 150, 243, 0.2)'
+      }`,
     },
     searchIcon: {
       color: isDark ? '#ffffff' : '#1a1a1a',
@@ -289,14 +274,16 @@ const Home = () => {
       fontSize: '1.5rem',
     },
     tabContainer: {
-      background: isDark 
-        ? 'rgba(30, 39, 73, 0.6)' 
+      background: isDark
+        ? 'rgba(30, 39, 73, 0.6)'
         : 'rgba(255, 255, 255, 0.9)',
       backdropFilter: 'blur(20px)',
       borderRadius: '50px',
       padding: '0.25rem',
       display: 'flex',
-      border: `1px solid ${isDark ? 'rgba(0, 229, 255, 0.2)' : 'rgba(33, 150, 243, 0.2)'}`,
+      border: `1px solid ${
+        isDark ? 'rgba(0, 229, 255, 0.2)' : 'rgba(33, 150, 243, 0.2)'
+      }`,
     },
     tabButton: (isActive) => ({
       padding: '0.5rem 1rem',
@@ -306,10 +293,14 @@ const Home = () => {
       fontWeight: '600',
       border: 'none',
       cursor: 'pointer',
-      background: isActive 
-        ? 'linear-gradient(135deg, #7c4dff 0%, #00e5ff 100%)' 
+      background: isActive
+        ? 'linear-gradient(135deg, #7c4dff 0%, #00e5ff 100%)'
         : 'transparent',
-      color: isActive ? '#ffffff' : isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)',
+      color: isActive
+        ? '#ffffff'
+        : isDark
+        ? 'rgba(255, 255, 255, 0.6)'
+        : 'rgba(0, 0, 0, 0.6)',
     }),
     filterRight: {
       display: 'flex',
@@ -317,13 +308,15 @@ const Home = () => {
       gap: '1rem',
     },
     refreshButton: {
-      background: isDark 
-        ? 'rgba(30, 39, 73, 0.6)' 
+      background: isDark
+        ? 'rgba(30, 39, 73, 0.6)'
         : 'rgba(255, 255, 255, 0.9)',
       backdropFilter: 'blur(20px)',
       padding: '0.75rem',
       borderRadius: '50%',
-      border: `1px solid ${isDark ? 'rgba(0, 229, 255, 0.2)' : 'rgba(33, 150, 243, 0.2)'}`,
+      border: `1px solid ${
+        isDark ? 'rgba(0, 229, 255, 0.2)' : 'rgba(33, 150, 243, 0.2)'
+      }`,
       cursor: 'pointer',
       transition: 'all 0.3s ease',
     },
@@ -331,14 +324,16 @@ const Home = () => {
       color: isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)',
     },
     selectBox: {
-      background: isDark 
-        ? 'rgba(30, 39, 73, 0.6)' 
+      background: isDark
+        ? 'rgba(30, 39, 73, 0.6)'
         : 'rgba(255, 255, 255, 0.9)',
       backdropFilter: 'blur(20px)',
       color: isDark ? '#ffffff' : '#1a1a1a',
       padding: '0.5rem 1rem',
       borderRadius: '12px',
-      border: `1px solid ${isDark ? 'rgba(0, 229, 255, 0.2)' : 'rgba(33, 150, 243, 0.2)'}`,
+      border: `1px solid ${
+        isDark ? 'rgba(0, 229, 255, 0.2)' : 'rgba(33, 150, 243, 0.2)'
+      }`,
       outline: 'none',
       cursor: 'pointer',
       fontSize: '0.875rem',
@@ -373,7 +368,7 @@ const Home = () => {
       <div style={styles.loadingContainer}>
         <motion.div
           animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
           style={styles.loadingIcon}
         >
           🚀
@@ -385,33 +380,35 @@ const Home = () => {
   return (
     <div style={styles.container}>
       {/* Hero Section */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -50 }}
         animate={{ opacity: 1, y: 0 }}
         style={styles.heroSection}
       >
         <div style={styles.heroContainer}>
-          <motion.h1 
+          <motion.h1
             style={styles.heroTitle}
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
           >
             <span style={styles.gradientText}>Discover Amazing</span>
             <br />
-            <span style={{ color: isDark ? '#ffffff' : '#1a1a1a' }}>Content</span>
+            <span style={{ color: isDark ? '#ffffff' : '#1a1a1a' }}>
+              Content
+            </span>
           </motion.h1>
-          
-          <motion.p 
+
+          <motion.p
             style={styles.heroSubtitle}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
           >
-            Share your voice, discover new perspectives
+            Share your Content, discover new perspectives
           </motion.p>
 
           {/* Search Bar */}
-          <motion.div 
+          <motion.div
             style={styles.searchContainer}
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -431,12 +428,14 @@ const Home = () => {
         </div>
 
         {/* Background Animation */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          overflow: 'hidden',
-          pointerEvents: 'none',
-        }}>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+          }}
+        >
           {[...Array(5)].map((_, i) => (
             <motion.div
               key={i}
@@ -444,7 +443,9 @@ const Home = () => {
                 position: 'absolute',
                 width: '16rem',
                 height: '16rem',
-                background: isDark ? 'rgba(124, 77, 255, 0.1)' : 'rgba(33, 150, 243, 0.1)',
+                background: isDark
+                  ? 'rgba(124, 77, 255, 0.1)'
+                  : 'rgba(33, 150, 243, 0.1)',
                 borderRadius: '50%',
                 filter: 'blur(60px)',
                 left: `${Math.random() * 100}%`,
@@ -467,64 +468,21 @@ const Home = () => {
       {/* Content Section */}
       <div style={styles.contentSection}>
         {/* Filter Bar with Tabs */}
-        <motion.div 
+        <motion.div
           style={styles.filterBar}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
           <div style={styles.filterLeft}>
             <FiTrendingUp style={styles.trendingIcon} />
-            
-            {/* Tab Switcher */}
+
             <div style={styles.tabContainer}>
-              {/* <button
-                onClick={() => setActiveTab('all')}
-                style={styles.tabButton(activeTab === 'all')}
-                onMouseEnter={(e) => {
-                  if (activeTab !== 'all') {
-                    e.target.style.color = isDark ? '#ffffff' : '#1a1a1a';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (activeTab !== 'all') {
-                    e.target.style.color = isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)';
-                  }
-                }}
-              >
-                All ({totalCount})
-              </button> */}
               <button
                 onClick={() => setActiveTab('posts')}
                 style={styles.tabButton(activeTab === 'posts')}
-                onMouseEnter={(e) => {
-                  if (activeTab !== 'posts') {
-                    e.target.style.color = isDark ? '#ffffff' : '#1a1a1a';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (activeTab !== 'posts') {
-                    e.target.style.color = isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)';
-                  }
-                }}
               >
                 Posts ({filteredPosts.length})
               </button>
-              {/* <button
-                onClick={() => setActiveTab('podcasts')}
-                style={styles.tabButton(activeTab === 'podcasts')}
-                onMouseEnter={(e) => {
-                  if (activeTab !== 'podcasts') {
-                    e.target.style.color = isDark ? '#ffffff' : '#1a1a1a';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (activeTab !== 'podcasts') {
-                    e.target.style.color = isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)';
-                  }
-                }}
-              >
-                Podcasts ({filteredPodcasts.length})
-              </button> */}
             </div>
           </div>
 
@@ -535,7 +493,9 @@ const Home = () => {
               onClick={handleRefresh}
               style={styles.refreshButton}
             >
-              <FiRefreshCw style={{ color: isDark ? '#ffffff' : '#1a1a1a' }} />
+              <FiRefreshCw
+                style={{ color: isDark ? '#ffffff' : '#1a1a1a' }}
+              />
             </motion.button>
 
             <FiFilter style={styles.filterIcon} />
@@ -551,248 +511,220 @@ const Home = () => {
           </div>
         </motion.div>
 
-        {/* Content Grid with Horizontal Swipe */}
-<AnimatePresence mode="wait">
-  {currentContent.length > 0 ? (
-    <motion.div
-      key={activeTab}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
-      {/* Section Title */}
-      <h2 style={{
-        fontSize: '1.5rem',
-        fontWeight: '700',
-        color: isDark ? '#ffffff' : '#1a1a1a',
-        marginBottom: '1.5rem',
-        paddingLeft: '0.5rem',
-      }}>
-        {activeTab === 'posts' ? '📝 Recent Posts' : activeTab === 'podcasts' ? '🚀 Podcasts' : '🌟 All Content'}
-      </h2>
-
-      {/* Horizontal Scroll Container */}
-      <div style={{
-        display: 'flex',
-        gap: '1.5rem',
-        overflowX: 'auto',
-        overflowY: 'hidden',
-        scrollBehavior: 'smooth',
-        padding: '1rem 0.5rem 2rem 0.5rem',
-        WebkitOverflowScrolling: 'touch',
-        scrollbarWidth: 'thin',
-        scrollbarColor: isDark ? '#7c4dff #1e2749' : '#2196f3 #f0f2f5',
-        msOverflowStyle: 'auto',
-        marginBottom: '1rem',
-      }}>
-        {currentContent.map((item, index) => (
-          <motion.div
-            key={item.id}
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-            style={{
-              minWidth: '320px',
-              maxWidth: '320px',
-              height: '450px',
-              flexShrink: 0,
-            }}
-          >
-            {/* Same Size Card Wrapper */}
-            <div style={{
-              width: '100%',
-              height: '100%',
-              background: isDark 
-                ? 'rgba(30, 39, 73, 0.6)' 
-                : 'rgba(255, 255, 255, 0.9)',
-              backdropFilter: 'blur(20px)',
-              border: `1px solid ${isDark ? 'rgba(0, 229, 255, 0.2)' : 'rgba(33, 150, 243, 0.2)'}`,
-              borderRadius: '16px',
-              padding: '1.5rem',
-              display: 'flex',
-              flexDirection: 'column',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: isDark 
-                ? '0 8px 32px rgba(0, 0, 0, 0.4)' 
-                : '0 4px 20px rgba(0, 0, 0, 0.1)',
-              overflow: 'hidden',
-              position: 'relative',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-8px)';
-              e.currentTarget.style.boxShadow = isDark
-                ? '0 20px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 229, 255, 0.3)'
-                : '0 12px 32px rgba(0, 0, 0, 0.15)';
-              e.currentTarget.style.borderColor = isDark ? 'rgba(0, 229, 255, 0.5)' : 'rgba(33, 150, 243, 0.5)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = isDark
-                ? '0 8px 32px rgba(0, 0, 0, 0.4)'
-                : '0 4px 20px rgba(0, 0, 0, 0.1)';
-              e.currentTarget.style.borderColor = isDark ? 'rgba(0, 229, 255, 0.2)' : 'rgba(33, 150, 243, 0.2)';
-            }}
+        {/* Posts Horizontal Scroll with arrow navigation */}
+        <AnimatePresence mode="wait">
+          {filteredPosts.length > 0 ? (
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
             >
-              {/* Gradient Border on Hover */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '4px',
-                background: 'linear-gradient(90deg, #00e5ff 0%, #7c4dff 100%)',
-                opacity: 0,
-                transition: 'opacity 0.3s ease',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-              />
+              <h2
+                style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  color: isDark ? '#ffffff' : '#1a1a1a',
+                  marginBottom: '1.5rem',
+                  paddingLeft: '0.5rem',
+                }}
+              >
+                📝 Recent Posts
+              </h2>
 
-              {/* Card Content */}
-              <div style={{ 
-                flex: 1, 
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-              }}>
-                {item.media ? (
-                  <PostCard post={item} showActions={false} />
-                ) : (
-                  <PodcastCard podcast={item} showActions={false} />
-                )}
+              <div
+                style={{
+                  position: 'relative',
+                  maxWidth: '100%',
+                  margin: '1rem 0',
+                }}
+              >
+                <button
+                  onClick={scrollLeft}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: '40%',
+                    zIndex: 10,
+                    background: 'rgba(0,0,0,0.5)',
+                    borderRadius: '50%',
+                    width: '36px',
+                    height: '36px',
+                    color: 'white',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                  aria-label="Scroll left"
+                >
+                  <FiChevronLeft size={24} />
+                </button>
+
+                <div
+                  ref={contentRowRef}
+                  style={{
+                    display: 'flex',
+                    overflowX: 'auto',
+                    scrollSnapType: 'x mandatory',
+                    gap: '1rem',
+                    padding: '1rem 2rem',
+                    // scrollbarWidth: 'thin',
+                    scrollBehavior: 'smooth',
+                  }}
+                >
+                  {filteredPosts.slice(0, 7).map((item) => (
+                    <motion.div
+                      key={item._id || item.id}
+                      style={{
+                        flex: '0 0 240px',
+                        aspectRatio: '4 /8 ',
+                        scrollSnapAlign: 'start',
+                        borderRadius: '14px',
+                        boxShadow: isDark
+                          ? '0 5px 15px rgba(124, 77, 255, 0.3)'
+                          : '0 5px 15px rgba(33, 150, 243, 0.3)',
+                        overflow: 'hidden', // keep card content clipped so long text can't break layout
+                        cursor: 'pointer',
+                        position: 'relative',
+                        background: isDark ? '#121212' : '#ffffff',
+                      }}
+                      whileHover={{ scale: 1.05 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <PostCard
+                        post={item}
+                        showActions={false}
+                        currentUser={currentUser}
+                      />
+                    </motion.div>
+                  ))}
+
+                  {/* Inline "See all" card right after 5th post */}
+                  {filteredPosts.length > 7 && (
+                    <motion.div
+                      key="see-all-card"
+                      style={{
+                        flex: '0 0 240px',
+                        aspectRatio: '4 / 3',
+                        scrollSnapAlign: 'start',
+                        borderRadius: '14px',
+                        border: '1px dashed rgba(124,77,255,0.5)',
+                        background: isDark
+                          ? 'rgba(18,18,18,0.9)'
+                          : 'rgba(255,255,255,0.9)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1rem',
+                      }}
+                      whileHover={{ scale: 1.04 }}
+                      transition={{ duration: 0.2 }}
+                      onClick={() => setModalOpen(true)}
+                    >
+                      <span
+                        style={{
+                          fontSize: '0.9rem',
+                          fontWeight: 600,
+                          color: isDark ? '#ffffff' : '#1a1a1a',
+                          marginBottom: '0.5rem',
+                          textAlign: 'center',
+                        }}
+                      >
+                        View all posts
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.8rem',
+                          color: isDark
+                            ? 'rgba(255,255,255,0.7)'
+                            : 'rgba(0,0,0,0.7)',
+                          textAlign: 'center',
+                        }}
+                      >
+                        Scroll or click to open full screen list
+                      </span>
+                    </motion.div>
+                  )}
+                </div>
+
+                <button
+                  onClick={scrollRight}
+                  style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: '40%',
+                    zIndex: 10,
+                    background: 'rgba(0,0,0,0.5)',
+                    borderRadius: '50%',
+                    width: '36px',
+                    height: '36px',
+                    color: 'white',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                  aria-label="Scroll right"
+                >
+                  <FiChevronRight size={24} />
+                </button>
               </div>
-            </div>
-          </motion.div>
-        ))}
+
+              {/* Existing See All Posts Button (kept) */}
+              {filteredPosts.length > 5 && (
+                <div
+                  style={{ textAlign: 'center', marginTop: '0.5rem' }}
+                >
+                  <button
+                    onClick={() => setModalOpen(true)}
+                    style={{
+                      background:
+                        'linear-gradient(135deg, #7c4dff 0%, #00e5ff 100%)',
+                      border: 'none',
+                      padding: '0.75rem 1.5rem',
+                      color: 'white',
+                      borderRadius: '24px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    See All Posts
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={styles.emptyState}
+            >
+              <motion.div
+                animate={{ y: [0, -20, 0] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                style={styles.emptyIcon}
+              >
+                📝
+              </motion.div>
+              <h3 style={styles.emptyTitle}>
+                {searchTerm ? 'No results found' : 'No posts yet'}
+              </h3>
+              <p style={styles.emptyText}>
+                {searchTerm
+                  ? 'Try different search terms'
+                  : 'Be the first to share!'}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Modal for All Posts */}
+        {modalOpen && (
+          <SeeAllModal
+            posts={filteredPosts}
+            onClose={() => setModalOpen(false)}
+            currentUser={currentUser}
+          />
+        )}
       </div>
-
-      {/* Scroll Indicator */}
-      {currentContent.length > 3 && (
-        <div style={{
-          textAlign: 'center',
-          marginTop: '0.5rem',
-          color: isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)',
-          fontSize: '0.875rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5rem',
-          animation: 'pulse 2s ease-in-out infinite',
-        }}>
-          <span style={{ fontSize: '1.2rem' }}>👉</span>
-          <span style={{ fontWeight: '500' }}>Swipe to see more</span>
-          <span style={{ fontSize: '1.2rem' }}>👈</span>
-        </div>
-      )}
-    </motion.div>
-  ) : (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      style={styles.emptyState}
-    >
-      <motion.div
-        animate={{ y: [0, -20, 0] }}
-        transition={{ duration: 2, repeat: Infinity }}
-        style={styles.emptyIcon}
-      >
-        {activeTab === 'posts' ? '📝' : activeTab === 'podcasts' ? '🚀' : '🌟'}
-      </motion.div>
-      <h3 style={styles.emptyTitle}>
-        {searchTerm ? 'No results found' : `No ${activeTab === 'all' ? 'content' : activeTab} yet`}
-      </h3>
-      <p style={styles.emptyText}>
-        {searchTerm ? 'Try different search terms' : 'Be the first to share!'}
-      </p>
-    </motion.div>
-  )}
-</AnimatePresence>
-
-{/* Custom Scrollbar Styles */}
-<style>{`
-  /* Pulse animation for scroll hint */
-  @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.5;
-    }
-  }
-
-  /* Horizontal scrollbar styling */
-  div::-webkit-scrollbar {
-    height: 8px;
-  }
-  
-  div::-webkit-scrollbar-track {
-    background: ${isDark ? '#1e2749' : '#f0f2f5'};
-    border-radius: 10px;
-    margin: 0 0.5rem;
-  }
-  
-  div::-webkit-scrollbar-thumb {
-    background: ${isDark 
-      ? 'linear-gradient(90deg, #7c4dff, #00e5ff)' 
-      : 'linear-gradient(90deg, #2196f3, #00bcd4)'};
-    border-radius: 10px;
-    transition: all 0.3s ease;
-  }
-  
-  div::-webkit-scrollbar-thumb:hover {
-    background: ${isDark 
-      ? 'linear-gradient(90deg, #9d6fff, #00ffff)' 
-      : 'linear-gradient(90deg, #1976d2, #0097a7)'};
-  }
-  
-  /* Smooth scrolling on all devices */
-  * {
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  /* Mobile optimizations */
-  @media (max-width: 768px) {
-    div::-webkit-scrollbar {
-      height: 4px;
-    }
-  }
-  
-  /* Touch device optimizations */
-  @media (hover: none) and (pointer: coarse) {
-    div::-webkit-scrollbar {
-      display: none;
-    }
-  }
-`}</style>
-</div>
-
-
-      {/* Responsive CSS */}
-      <style>{`
-        @media (max-width: 768px) {
-          ${styles.filterBar} {
-            flex-direction: column;
-            align-items: stretch;
-          }
-          ${styles.filterLeft},
-          ${styles.filterRight} {
-            width: 100%;
-            justify-content: center;
-          }
-          ${styles.grid} {
-            grid-template-columns: 1fr;
-          }
-        }
-        
-        input::placeholder {
-          color: ${isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'};
-        }
-        
-        option {
-          background: ${isDark ? '#1e2749' : '#ffffff'};
-          color: ${isDark ? '#ffffff' : '#1a1a1a'};
-        }
-      `}</style>
     </div>
   );
 };
